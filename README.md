@@ -2,6 +2,14 @@
 
 > Cloned from saas-foundation v1.7.0. Port 8400. Upgrade with `npm run foundation:status`; template-owned paths are listed in the template's plan §3.2.
 
+**optbook: Consent & Preference Center.** An append-only consent ledger, a pure send-eligibility decision that reports every applicable reason in a fixed order, a tokenized preference center, erasure fan-out with a clock and tombstones, a consent-history import with a preview, and proof of any past decision. Channels are email and SMS; every send adapter is a mock.
+
+> **optbook is a learning and portfolio project. It is not deployed and has no users.** Every contact, address, phone number, consent record and send in it is synthetic. It never sends a real email or SMS: the send adapters are mocks that write to a table. **optbook is not legal advice.** Its rule sets have invented names and illustrative values and must not be relied on as describing any law, regulation or carrier policy. Passing its tests says nothing about compliance with anything. Anything marked **[legal review]** is a rule a real deployment would need a qualified person to decide. Built by Lab Intelligence as a build-log project.
+
+What optbook is and how it is built: `docs/optbook/PRD.md` and `CLAUDE.md`. Everything below this line is the saas-foundation template's README.
+
+---
+
 A Next.js 16 + Prisma 7 + Postgres template with the parts every multi-tenant app rebuilds: magic-link sign-in with TOTP,
 orgs and roles, one authorization path, an append-only audit log, share links, cron, and optional billing (Stripe) and
 notifications (SMS). Its safety rules are executable: `tests/invariants/` holds INV-01 to INV-28, and CI fails if one breaks.
