@@ -346,7 +346,8 @@ export function planImport(args: {
       verified_channel: null,
     };
     const drafts: EventDraft[] = [{ ...base, type, purpose, occurred_at: c.occurred_at, ...(c.suppression ? { kind: c.suppression } : {}) }];
-    if (c.kind === 'permissive' && c.confirm_at) drafts.push({ ...base, type: 'OPT_IN_CONFIRM', purpose: null, occurred_at: c.confirm_at });
+    // The confirmation names the row's purpose, so it cannot confirm a different pending pair (D-048).
+    if (c.kind === 'permissive' && c.confirm_at) drafts.push({ ...base, type: 'OPT_IN_CONFIRM', purpose, occurred_at: c.confirm_at });
     const ids = drafts.map(() => `planned:${args.batch_id}:${(seq += 1)}`);
     drafts.forEach((d, k) => events.push({ ...d, event_id: ids[k]! }));
     if (!args.ledgers[c.hash] && !created.has(c.hash)) {

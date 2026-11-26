@@ -39,6 +39,16 @@ export type Decision = {
   basis: { lawful_basis: LawfulBasis | null; opt_in_event_id: string | null; confirm_event_id: string | null };
 };
 
+/**
+ * A message must name a catalog channel and a catalog purpose. There is no reason code for a malformed message
+ * (D-047): callers check with this first, and `decide` treats a bad message as a programming error.
+ */
+export function checkMessage(message: { channel: string; purpose: string }, config: Config): 'UNKNOWN_CHANNEL' | 'UNKNOWN_PURPOSE' | null {
+  if (!config.catalog.channels.includes(message.channel)) return 'UNKNOWN_CHANNEL';
+  if (!Object.hasOwn(config.catalog.purposes, message.purpose)) return 'UNKNOWN_PURPOSE';
+  return null;
+}
+
 const NULL_BASIS = { lawful_basis: null, opt_in_event_id: null, confirm_event_id: null };
 
 /** PRD §5b. Only events known at `at` (recorded_at <= at) are used (D-008, AC-b5). */
@@ -53,6 +63,8 @@ export function decide(input: DecisionInput, config: Config): Decision {
 export function evaluate(input: DecisionInput, config: Config): Decision {
   const { at, message } = input;
   const { channel, purpose } = message;
+  const bad = checkMessage(message, config);
+  if (bad) throw new Error(`decide: ${bad}: callers check messages with checkMessage first (D-047)`);
   const s = replay(input.events);
   const sel = selectRuleSet(config, factValue(s, 'region'), at);
   if (!sel.ok) return { outcome: 'deny', reasons: [{ code: 'NO_RULE_SET_IN_FORCE', detail: {} }], rule_set: null, basis: NULL_BASIS };

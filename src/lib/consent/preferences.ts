@@ -103,11 +103,12 @@ export function diffPreferences(args: {
   }
   keyed.sort((a, b) => a.c - b.c || a.p - b.p);
   let drafts = keyed.map((k) => k.d);
+  // rule 4 first: with the global box ticked every permissive change is dropped, so it cannot block the unsubscribe
+  if (submission.global_unsubscribe) drafts = drafts.filter((d) => d.type !== 'OPT_IN');
 
   if (drafts.some((d) => d.channel !== null && !identifierChannels.includes(d.channel))) return { ok: false, error: 'NO_IDENTIFIER' };
 
   if (submission.global_unsubscribe) {
-    drafts = drafts.filter((d) => d.type !== 'OPT_IN'); // rule 4: every permissive change is dropped
     if (!globalStandsEverywhere(s, catalog, catalog.channels)) drafts.unshift(draft('GLOBAL_UNSUBSCRIBE', null, null, at, token, 'preference_center'));
   }
   return { ok: true, drafts };

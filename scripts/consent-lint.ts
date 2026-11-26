@@ -7,8 +7,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 export const CRYPTO_ALLOWED = ['createHmac', 'createHash', 'timingSafeEqual'];
-const FORBIDDEN = [/\bDate\b/, /\bMath\.random\b/, /\bprocess\b/, /\bfetch\b/, /\bsetTimeout\b/, /\bsetInterval\b/, /\brequire\s*\(/, /\bimport\s*\(/];
-const FLOAT = /(?<![\w.])\d+\.\d+(?:e[+-]?\d+)?\b|(?<![\w.])\d+e-\d+\b/i;
+const FORBIDDEN = [/\bDate\b/, /\bMath\.random\b/, /\bprocess\b/, /\bfetch\b/, /\bsetTimeout\b/, /\bsetInterval\b/, /\bsetImmediate\b/, /\bqueueMicrotask\b/, /\bperformance\b/, /\bglobalThis\b/, /\bwindow\b/, /\beval\b/, /\bFunction\s*\(/, /\bcrypto\s*\./, /\brequire\s*\(/, /\bimport\s*\(/, /\bimport\.meta\b/];
+const FLOAT = /(?<![\w.])\d+\.\d*(?:e[+-]?\d+)?|(?<![\w.)\]])\.\d+|(?<![\w.])\d+e-\d+\b/i;
 
 /** Replaces comments and string/template contents with spaces, keeping line structure. */
 export function stripCode(src: string): string {
@@ -29,7 +29,7 @@ export function stripCode(src: string): string {
       }
       out += '  ';
       i += 2;
-    } else if (c === '"' || c === "'" || c === '`') {
+    } else if (c === '"' || c === "'") {
       out += c;
       i += 1;
       while (i < src.length && src[i] !== c) {
@@ -42,6 +42,31 @@ export function stripCode(src: string): string {
         }
       }
       out += c;
+      i += 1;
+    } else if (c === '`') {
+      // a template literal: blank the text, keep every ${ ... } expression as code (so `${Date.now()}` is caught)
+      out += c;
+      i += 1;
+      while (i < src.length && src[i] !== '`') {
+        if (src[i] === '\\') {
+          out += '  ';
+          i += 2;
+        } else if (src[i] === '$' && src[i + 1] === '{') {
+          out += '$';
+          i += 1;
+          let depth = 0;
+          do {
+            if (src[i] === '{') depth += 1;
+            if (src[i] === '}') depth -= 1;
+            out += src[i];
+            i += 1;
+          } while (i < src.length && depth > 0);
+        } else {
+          out += src[i] === '\n' ? '\n' : ' ';
+          i += 1;
+        }
+      }
+      out += '`';
       i += 1;
     } else if (c === '/' && /[=(,:;!&|?{}[\]^~+\-*%<>]\s*$|^\s*$|return\s*$/.test(out.slice(-20).replace(/\n/g, ' '))) {
       // a regular-expression literal: blank its body
@@ -71,21 +96,27 @@ export function stripCode(src: string): string {
 
 export function lintSource(file: string, src: string): string[] {
   const problems: string[] = [];
-  const importRe = /^\s*(?:import|export)\s+(?:type\s+)?([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/gm;
-  for (const m of src.matchAll(importRe)) {
+  // Every module specifier in the file, however the statement is spaced: `from '...'`, `import '...'`, `export ... from`.
+  const specs = [...src.matchAll(/^\s*import\b[^'"]*?(['"])([^'"\n]+)\1/gm), ...src.matchAll(/^\s*export\b[^'";=]*?\bfrom\s*(['"])([^'"\n]+)\1/gm)];
+  for (const m of specs) {
     const spec = m[2]!;
     const line = src.slice(0, m.index).split('\n').length;
-    if (spec.startsWith('./')) continue;
-    if (spec === 'zod') continue;
-    if (spec === 'node:crypto') {
-      const names = m[1]!.replace(/[{}]/g, '').split(',').map((s) => s.trim().split(/\s+as\s+/)[0]!).filter(Boolean);
-      const bad = names.filter((x) => !CRYPTO_ALLOWED.includes(x));
-      if (bad.length) problems.push(`${file}:${line}: node:crypto import not allowed: ${bad.join(', ')}`);
-      continue;
-    }
+    if (spec.startsWith('./') && !spec.includes('..')) continue;
+    if (spec === 'zod' || spec === 'node:crypto') continue;
     problems.push(`${file}:${line}: import not allowed: ${spec}`);
   }
-  if (/^\s*import\s+['"]/m.test(src)) problems.push(`${file}: side-effect import not allowed`);
+  // node:crypto: named imports only, and only the three allowed names.
+  for (const m of src.matchAll(/\bimport\s*(?:type\s+)?([^;]*?)\s*from\s*(['"])node:crypto\2/g)) {
+    const line = src.slice(0, m.index).split('\n').length;
+    const clause = m[1]!.trim();
+    if (!/^\{[^}]*\}$/.test(clause)) {
+      problems.push(`${file}:${line}: node:crypto import not allowed: ${clause}`);
+      continue;
+    }
+    const names = clause.replace(/[{}]/g, '').split(',').map((x) => x.trim().split(/\s+as\s+/)[0]!).filter(Boolean);
+    const bad = names.filter((x) => !CRYPTO_ALLOWED.includes(x));
+    if (bad.length) problems.push(`${file}:${line}: node:crypto import not allowed: ${bad.join(', ')}`);
+  }
   const code = stripCode(src);
   code.split('\n').forEach((text, k) => {
     for (const re of FORBIDDEN) if (re.test(text)) problems.push(`${file}:${k + 1}: forbidden token ${re.source}`);

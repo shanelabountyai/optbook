@@ -221,6 +221,7 @@ export function validateEvent(input: unknown, catalog: Catalog): Result<ConsentE
   const idField = identifierField(e);
   if (idField) return fail(`BAD_FIELD:${idField}`);
 
+  for (const f of ['occurred_at', 'recorded_at'] as const) if (!present(e[f])) return fail(`MISSING_FIELD:${f}`);
   if (!isTimestamp(e.occurred_at) || !isTimestamp(e.recorded_at)) return fail('BAD_TIMESTAMP');
   if (toEpoch(e.occurred_at) > toEpoch(e.recorded_at)) return fail('OCCURRED_AFTER_RECORDED');
 

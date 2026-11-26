@@ -2,7 +2,7 @@
 // recomputation of a stored decision.
 import { canonicalJson, fingerprint } from './canonical';
 import { decide, evaluate, type Decision, type DecisionInput } from './decide';
-import { compareEvents, knownAt, occurredBy } from './ledger';
+import { compareEvents, knownAt, occurredBy, replay } from './ledger';
 import type { Config, ConsentEvent, Send } from './schema';
 import { toEpoch } from './time';
 
@@ -16,11 +16,22 @@ export type Trace = {
   /** The event behind each reason, where a reason points at one. */
   reasons: { code: string; event_id: string | null }[];
   basis: Decision['basis'];
+  /** The decision-relevant facts used, with the event each came from (PRD §5f). */
+  facts: { region: { value: string; event_id: string } | null; utc_offset_minutes: { value: number; event_id: string } | null };
   /** Events used by this view, by id, in ledger order. */
   used_event_ids: string[];
   /** Events that had occurred by `at` but were recorded after it: not yet known at `at`. */
   not_yet_known: string[];
 };
+
+function factsOf(s: ReturnType<typeof replay>): Trace['facts'] {
+  const r = s.facts.region;
+  const o = s.facts.utc_offset_minutes;
+  return {
+    region: r ? { value: r.value as string, event_id: r.event_id } : null,
+    utc_offset_minutes: o ? { value: o.value as number, event_id: o.event_id } : null,
+  };
+}
 
 function lateAt(events: readonly ConsentEvent[], at: string): ConsentEvent[] {
   const t = toEpoch(at);
@@ -40,12 +51,23 @@ export function explain(input: DecisionInput, config: Config, mode: Mode): { dec
       mode,
       at: input.at,
       rule_set: decision.rule_set,
+      facts: factsOf(replay(used)),
       reasons: decision.reasons.map((r) => ({ code: r.code, event_id: 'event_id' in r.detail ? r.detail.event_id : null })),
       basis: decision.basis,
       used_event_ids: [...used].sort(compareEvents).map((e) => e.event_id),
       not_yet_known: lateAt(input.events, input.at).map((e) => e.event_id),
     },
   };
+}
+
+/**
+ * The late-recorded events behind a hindsight decision: those a reason names. When no reason names a late event (a
+ * late fact moved the contact to another rule set, say), every late event is listed.
+ */
+function behind(d: Decision, late: ConsentEvent[]): ConsentEvent[] {
+  const named = new Set(d.reasons.map((r) => ('event_id' in r.detail ? r.detail.event_id : null)));
+  const hit = late.filter((e) => named.has(e.event_id));
+  return hit.length ? hit : late;
 }
 
 export type Exposure = { send: Send; hindsight_reasons: string[]; late_events: LateEvent[] };
@@ -66,7 +88,7 @@ export function exposure(events: readonly ConsentEvent[], sends: readonly Send[]
       out.push({
         send,
         hindsight_reasons: hind.reasons.map((r) => r.code),
-        late_events: lateAt(events, send.sent_at).map((e) => ({ event_id: e.event_id, occurred_at: e.occurred_at, recorded_at: e.recorded_at })),
+        late_events: behind(hind, lateAt(events, send.sent_at)).map((e) => ({ event_id: e.event_id, occurred_at: e.occurred_at, recorded_at: e.recorded_at })),
       });
     }
   }
@@ -76,7 +98,10 @@ export function exposure(events: readonly ConsentEvent[], sends: readonly Send[]
 export type ProofInputs = Omit<DecisionInput, 'events'>;
 export type ProofRecord = { inputs: ProofInputs; fingerprint: string } & Decision;
 
-/** SHA-256 of the canonical JSON of the full decision input, with events and sends in a fixed order. */
+/**
+ * SHA-256 of the canonical JSON of the decision input, with events and sends in a fixed order. Only the events known
+ * at `at` are included, so events appended later do not change the proof of an earlier decision (AC-b5).
+ */
 export function proofFingerprint(input: DecisionInput): string {
   const events = [...input.events].sort((a, b) => (a.event_id < b.event_id ? -1 : a.event_id > b.event_id ? 1 : 0));
   const sends = [...input.recent_sends].sort((a, b) => {
@@ -84,7 +109,7 @@ export function proofFingerprint(input: DecisionInput): string {
     const y = canonicalJson(b);
     return x < y ? -1 : x > y ? 1 : 0;
   });
-  return fingerprint({ at: input.at, message: input.message, events, recent_sends: sends, tombstone_match: input.tombstone_match });
+  return fingerprint({ at: input.at, message: input.message, events: knownAt(events, input.at), recent_sends: sends, tombstone_match: input.tombstone_match });
 }
 
 /** What Phase 2 stores for every decision made for a mock send. */

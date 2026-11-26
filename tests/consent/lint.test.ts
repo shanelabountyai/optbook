@@ -31,3 +31,19 @@ describe('consent:lint (AC-b2)', () => {
     expect(lintSource('x.ts', "// Date.now() 1.5\nconst s = 'process 2.5 Date';\nconst next_allowed_at = 1; const dueDate = 2; const v = 'v1.';\nconst re = /\\d+\\.\\d+/;")).toEqual([]);
   });
 });
+
+describe('consent:lint cannot be fooled by the review\'s examples', () => {
+  it.each([
+    ['const s = `${Date.now()}`;', 'Date'],
+    ['import {x} from"node:fs";', 'import not allowed'],
+    ["import*as fs from 'node:fs';", 'import not allowed'],
+    ['const f = .5;', 'floating-point'],
+    ["globalThis['Da'+'te']", 'globalThis'],
+    ['performance.now()', 'performance'],
+    ["import * as c from 'node:crypto';", 'node:crypto import not allowed'],
+    ["export * from '../x';", 'import not allowed'],
+    ['crypto.randomUUID()', 'crypto'],
+  ])('catches %s', (src, msg) => {
+    expect(lintSource('x.ts', src).join('\n')).toContain(msg);
+  });
+});
