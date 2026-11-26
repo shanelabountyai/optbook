@@ -9,7 +9,7 @@ What exists:
 
 What was decided: owner decisions O-1 to O-7 and judgment calls from D-001 on, in `docs/optbook/DECISIONS.md`. Five are flagged for the owner to confirm; defaults are in force.
 
-What was checked: the 35 send-eligibility cases were generated from a throwaway implementation (not committed) and the JSON block's SHA-256 was verified by extracting it with the command in `GOLDEN-DECISIONS.md`. The token and hash known-answer values were computed with Node's `crypto`. The other example tables (preferences, erasure, import, audit) were derived by hand. An independent agent reviewed the PRD and plans; its findings and what was done are in the pull request.
+What was checked: the 35 send-eligibility cases were generated from a throwaway implementation (not committed) and the JSON block's SHA-256 was verified by extracting it with the command in `GOLDEN-DECISIONS.md`. The token and hash known-answer values were computed with Node's `crypto`. The other example tables (preferences, erasure, import, audit) were derived by hand. An independent agent reviewed the PRD and plans (8 must-fix, 15 should-fix, 3 nits); what was fixed is D-031 to D-037, what was not is D-038, and the full list is in the pull request. The import table was corrected by that review, so treat the import rules as the least-settled part of the PRD.
 
 What was not checked: nothing was installed, built or run against the template. Port 8400 was checked against `CLONES.md` only.
 

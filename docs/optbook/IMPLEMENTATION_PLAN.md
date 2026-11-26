@@ -34,7 +34,7 @@ Clone-owned Prisma file `prisma/schema/optbook.prisma` and its own migrations, d
 | `EvidenceSnapshot` | small JSON per `evidence_ref` | deleted at erasure completion |
 | `ErasureRequest`, `ErasureTask` | the request, its clock, one task per downstream system | task payloads scrubbed on acknowledgement |
 | `Tombstone` | keyed hash, channel, status (`active`, `lifted`), request id | never deleted |
-| `ImportBatch`, `ImportRow` | a preview and its row outcomes; held rows and their resolution | |
+| `ImportBatch`, `ImportRow` | a preview and its row outcomes; held rows and their resolution | the uploaded file is not kept after commit or discard; rejected and held rows store the identifier hashed (PRD Q-13) |
 
 - Every table carries `orgId`. RLS policies are generated with `npm run rls:policies` and committed. Each table is listed in `src/app/export-hooks.ts` as exported (safe columns only) or in `exportSkipped` with a reason; the template's invariant tests fail otherwise. Whether `Tombstone` hashes belong in an export is decided in the Phase 2 plan.
 - Config (`config/optbook/*.json`: catalog, rule sets, region map, fan-out policy, status vocabulary, token lifetimes) is loaded and validated at start; an invalid file stops the app with the field name.
@@ -65,8 +65,8 @@ Exit: e2e green in CI; nothing in the README that a command did not print.
 
 | Risk | What is done about it |
 |---|---|
-| A rule in the PRD is wrong or reads as legal advice | Independent review before the pull request; every regional rule is data and flagged; the owner confirms five defaults |
+| A rule in the PRD is wrong or reads as legal advice | Independent review before the pull request; every regional rule is data and flagged; five defaults are listed in `DECISIONS.md` for the owner to confirm |
 | Golden cases and the engine share one author's misunderstanding | Stated in PRD §10 and never described as verification |
 | The cloud session cannot generate the Prisma client or start Postgres | Phase 1 needs neither; later phases record what could not run and let CI decide |
 | No shared history with the template makes upgrades manual | Accepted (D-005); `foundation:drift` still guards template-owned paths |
-| Scope creep toward a real sender | Mocks only is an owner decision (O-3) and a lint check from Phase 2 |
+| Scope creep toward a real sender | Mocks only is an owner decision (`DECISIONS.md` O-3) and a lint check from Phase 2 |

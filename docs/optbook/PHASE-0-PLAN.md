@@ -28,7 +28,8 @@ Read `CLAUDE.md` and `docs/optbook/DECISIONS.md` first. If your run prompt and t
    git -C ../saas-foundation-v1.7.0 archive v1.7.0 | tar -x --exclude=NEXT.md -C .
    git fetch --depth 1 ../saas-foundation-v1.7.0 tag v1.7.0      # foundation:drift diffs against this tag
    ```
-   The template's `README.md` replaces the stub on purpose (step 4 rewrites it). The kit's `NEXT.md`, `CLAUDE.md`, `docs/optbook/` and `fixtures/README.md` must be unchanged afterwards: check with `git status --short -- NEXT.md CLAUDE.md docs/optbook fixtures`, which must print nothing. Copy the whole tree; do not prune `spikes/`, `audit/` or the template's own documents.
+   The template's `README.md` replaces the repository's stub `README.md` on purpose (step 4 rewrites it); it is not a kit file. The kit's `NEXT.md`, `CLAUDE.md`, `docs/optbook/` and `fixtures/README.md` must be unchanged afterwards: check with `git status --short -- NEXT.md CLAUDE.md docs/optbook fixtures`, which must print nothing. Copy the whole tree; do not prune `spikes/`, `audit/` or the template's own documents.
+   **Commit now, before anything is changed: commit (a), "saas-foundation v1.7.0 tree as copied"**, staging the top-level paths by name (`git add .env.example .github .gitignore BACKLOG.md ...`; list them with `git status --short`), never `git add -A`, and never the kit files.
 
 3. **Install.** `npm ci`. If `postinstall` fails on the Prisma download, record the exact error, confirm `node_modules/` exists, and continue.
 
@@ -51,9 +52,9 @@ Read `CLAUDE.md` and `docs/optbook/DECISIONS.md` first. If your run prompt and t
    npm test                      # needs a local Postgres 17 and npm run db:setup
    git ls-files | grep -iE "\.env|secret|credential|\.pem$|\.key$"     # after staging: only .env.example may appear
    ```
-   `foundation:drift` must pass here; it needs nothing from the network. For the others, "could not run here: <command>: <error>" is an acceptable result in a cloud session; a failure that is not about the environment is not, and is reported, not fixed inside template-owned paths.
+   `foundation:drift` must pass here; it needs nothing from the network. It compares only template-owned paths (`src/core`, `src/modules`, `src/proxy.ts`, `prisma/schema`, `prisma/migrations`, `tests/invariants`, `scripts/foundation-*.ts`, `FOUNDATION_VERSION` and the security routes); `README.md`, `package.json`, `.github/workflows/ci.yml`, `playwright.config.ts`, other `scripts/`, `src/lib/`, `tests/consent/`, `fixtures/` and `docs/` are clone-owned and cannot cause drift. If the `grep` prints a path other than `.env.example`, list the paths in the pull request and leave the files alone (they are template source files whose names contain those words, not secrets); if one actually holds a secret value, stop and notify. For the others, "could not run here: <command>: <error>" is an acceptable result in a cloud session; a failure that is not about the environment is not, and is reported, not fixed inside template-owned paths.
 
-8. **Commit**, naming paths (never `git add -A`), in three commits: (a) the template tree as copied (`git add` the top-level paths one by one, excluding nothing the tag contains); (b) the `new-project` rewrite and the `billing` removal; (c) the README block, `NEXT.md`, and any new `DECISIONS.md` rows. End each message with the attribution lines your session gives you.
+8. **Commit the rest**, naming paths (never `git add -A`). Commit (a) was made in step 2. Now: (b) the `new-project` rewrite and the `billing` removal; (c) the README block, `NEXT.md`, and any new `DECISIONS.md` rows. End each message with the attribution lines your session gives you.
 
 9. **Push and open a draft pull request** `optbook: Phase 0 clone setup` against `main`. Say in the body that it includes the `prd` commits until that pull request is merged, list what ran and what could not, and repeat the hold line: do not merge until Shane reviews. Never merge, never force-push, never mark ready.
    If the push is refused because the session may not write `.github/workflows/`, commit everything else, leave `ci.yml` out, record the exact error, and add a You step asking Shane to add the file.

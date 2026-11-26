@@ -7,7 +7,7 @@ Read first: `CLAUDE.md`, `docs/optbook/DECISIONS.md`, `docs/optbook/PRD.md` §4 
 ## Ground rules for this phase
 
 - `src/lib/consent/**` may import only: files in the same directory, `zod`, and `node:crypto` (`createHmac`, `createHash`, `timingSafeEqual` only).
-- Forbidden under `src/lib/consent/**`, enforced by `consent:lint`: `Date` in any form, `Math.random`, `process.`, `fetch(`, `setTimeout`, `node:fs`, `prisma`, `next`, `@/core`, `@/modules`, `@/app`, and floating-point literals.
+- Forbidden under `src/lib/consent/**`, enforced by `consent:lint`. As import specifiers: anything other than a relative path, `zod` or `node:crypto`. As whole-word identifiers (`\bDate\b`, so `next_allowed_at` and `dueDate`-style names do not trip it): `Date`, `Math.random`, `process`, `fetch`, `setTimeout`, `setInterval`. And floating-point literals.
 - Every function takes "now" and all configuration as arguments. Nothing is read from module scope except constants.
 - Errors that a caller can cause are returned as values with a code from the PRD, not thrown. A throw means a bug.
 - Tests live in `tests/consent/` (the template's vitest config already includes `tests/**/*.test.ts`). They need no database. The naive oracle and the seeded generator live in `tests/consent/oracle/` and are never imported by product code.
@@ -18,7 +18,7 @@ Read first: `CLAUDE.md`, `docs/optbook/DECISIONS.md`, `docs/optbook/PRD.md` §4 
 `1.1 scaffold → 1.2 fixtures → time → canonical → schema → ruleset → ledger → decide (+ oracle, properties) → identity → tokens → preferences → erasure → import → audit → 1.15 eval and gate`.
 
 - [ ] **1.1 Scaffold.** Add scripts to `package.json`: `test:consent` (`vitest run tests/consent`), `consent:lint` (`tsx scripts/consent-lint.ts`), `consent:eval` (`tsx scripts/consent-eval.ts`), `fixtures:check` (`tsx scripts/fixtures-check.ts`). The script names must not match `scripts/foundation-*.ts` (template-owned). `consent:eval` prints `0 cases` and exits 0 until 1.15. *Acceptance:* all four commands run; `foundation:drift` still clean.
-- [ ] **1.2 Fixtures.** Extract `fixtures/golden/decisions.json` with the command in `GOLDEN-DECISIONS.md`; the SHA-256 must match the one stated there. Write `fixtures/import/im-sample.csv` from the block in `fixtures/README.md`. Transcribe the other tables to `fixtures/golden/{tokens,preferences,identity,erasure,import,audit}.json` in the shape given in `fixtures/README.md`. **Commit the fixtures before any test reads them.** *Acceptance:* `fixtures:check` passes on a clean checkout; a test asserts each file's case ids are exactly those listed in `fixtures/README.md`.
+- [ ] **1.2 Fixtures.** Extract `fixtures/golden/decisions.json` with the command in `GOLDEN-DECISIONS.md`; the SHA-256 must match the one stated there. Write `fixtures/import/im-sample.csv` from the block in `fixtures/README.md`. Transcribe the other tables to `fixtures/golden/{tokens,preferences,identity,erasure,import,audit}.json` in the shape given in `fixtures/README.md`. An `expected` value holds only what the PRD table states (outcome, codes, notes, event types, scopes, timestamps, counts); a field the table does not state is not asserted. These files are your transcription, so commit them in their own commit, before any engine code, and do not touch them afterwards without a `D-` row: that is what makes "never edit an expected value" checkable for them. **Commit the fixtures before any test reads them.** *Acceptance:* `fixtures:check` passes on a clean checkout; a test asserts each file's case ids are exactly those listed in `fixtures/README.md`.
 
 ## Modules
 
@@ -53,7 +53,7 @@ Each entry: what goes in, what comes out, what must always hold, and the tests t
 
 - **In:** a contact's events; a time. **Out:** `knownAt(events, at)`; `latest(events)` (the tie rule of PRD §5a step 1); `checkAppend(existing, candidate, catalog) -> ok | { error }` (adds `DUPLICATE_EVENT_ID`, `CONTACT_ERASED`); `replay(events) -> ContactState` (per pair: `last_in`, standing restrictive events by scope, confirming event; per channel: suppressions, frequency choice; facts; erasure status); `pairStatus(state, ruleSet, channel, purpose) -> on | pending | off`.
 - **Invariants:** L-1 to L-5; `replay` is independent of input order; `replay` does not take a rule set (state is facts; the rule set is applied when reading it).
-- **Tests:** for each of the 35 cases, `replay` of the known events in listed order, reversed, and in 20 shuffles from seed `20261126` gives deeply equal state; `pairStatus` agrees with the case's expected reasons (on iff none of codes 5 to 9; pending iff exactly `PENDING_DOUBLE_OPT_IN` among them); `checkAppend` refusals.
+- **Tests:** for each of the 35 cases, `replay` of the known events in listed order, reversed, and in 20 shuffles from seed `20261126` gives deeply equal state; for the cases whose message purpose is marketing-class, `pairStatus` agrees with the expected reasons (on iff none of codes 5 to 9; pending iff `PENDING_DOUBLE_OPT_IN` is the only one of them); `checkAppend` refusals.
 
 ### 1.8 `decide.ts`
 
@@ -81,11 +81,11 @@ Each entry: what goes in, what comes out, what must always hold, and the tests t
 
 - **In:** contact state, rule set, catalog, a submission, token payload, time. **Out:** `preferenceView(state, ruleSet, catalog)`; `diffPreferences(...) -> EventDraft[] | { error }`; `oneClick(state, ruleSet, tokenPayload, at) -> EventDraft[]`. A draft is an event without `event_id` and `contact_id`.
 - **Invariants:** PRD §5c rules 1 to 6; an unchanged submission yields no drafts; every draft passes `validateEvent` once ids are added; a submission can never produce a permissive draft together with a `GLOBAL_UNSUBSCRIBE`.
-- **Tests:** PC-01 to PC-07, OC-01 to OC-04; AC-c3 as a property over the generator's states.
+- **Tests:** PC-01 to PC-07, OC-01 to OC-04; a pending pair toggled on from a link on its own channel emits the opt-in; `NO_IDENTIFIER`; AC-c3 as a property over the generator's states, within the limits AC-c3 states. `preferenceView` and `diffPreferences` take the set of channels the contact has an identifier for.
 
 ### 1.12 `erasure.ts`
 
-- **In:** request, registry, policy, tasks, task events, time, identifiers and key. **Out:** `planErasure(...) -> { eventDraft, tombstones, tasks, due_at }`; `applyTaskEvent(task, event, policy) -> task | INVALID_TRANSITION`; `tick(task, at, policy)` (applies a due timeout); `requestStatus(request, tasks, at, policy) -> { state, at_risk, overdue, completed_at?, completed_late?, eventDraft? }`.
+- **In:** request, registry, policy, tasks, task events, time, identifiers and key. **Out:** `planErasure(...) -> { eventDraft, tombstones, tasks, due_at }`; `applyTaskEvent(task, event, policy) -> task | INVALID_TRANSITION`; `tick(task, at, policy)` (applies a due timeout); `requestStatus(request, tasks, at, policy) -> { state, at_risk, overdue, completed_at?, completed_late?, eventDraft? }` (the completion draft is returned whenever the state is `COMPLETED`; appending it once is the caller's job). `planErasure` returns `ERASURE_ALREADY_OPEN` or `NO_RULE_SET_IN_FORCE` instead of a plan when they apply.
 - **Invariants:** PRD §5d table; `max_attempts = backoff_seconds.length + 1` or the policy is refused; an `ACK` is accepted from every state; `ACKED` is terminal; `overdue` is strict (`at > due_at`).
 - **Tests:** ER-01 to ER-09; per-task event sequences applied with the events of different tasks interleaved in any order give the same final tasks (AC-d2).
 
@@ -93,20 +93,20 @@ Each entry: what goes in, what comes out, what must always hold, and the tests t
 
 - **In:** CSV text, mapping, status vocabulary, the affected contacts' ledgers keyed by identifier hash, a tombstone lookup, config, batch id, import time. **Out:** `parseCsv(text) -> rows | { error, row }`; `planImport(...) -> { rows: [{ row, outcome, reason?, notes, drafts }], summary, ledger_fingerprint }`.
 - **Invariants:** PRD §5e rules 1 to 13; planning is pure and writes nothing; the plan does not depend on file order (AC-e2); AC-e3.
-- **Tests:** IM-01 to IM-18 from `fixtures/import/im-sample.csv` with the summary counts; the same file with its rows reversed and in 20 seeded shuffles gives the same outcome per original row; AC-e5 CSV cases; AC-e3 as a property (for generated ledgers and generated permissive-heavy files, no pair that is "no" before is "yes" after applying the plan's drafts).
+- **Tests:** IM-01 to IM-18 from `fixtures/import/im-sample.csv` with the summary counts; the same file with its rows reversed and in 20 seeded shuffles gives the same multiset of (row content, outcome, reason, notes) as AC-e2 states; AC-e5 CSV cases; AC-e3 as a property (for generated ledgers and generated permissive-heavy files, no pair that is "no" before is "yes" after applying the plan's drafts).
 
 ### 1.14 `audit.ts`
 
-- **In:** as `decide`, plus mode; stored decision records; sends. **Out:** `explain(input, config, mode: "as_known" | "hindsight") -> { decision, trace }`; `exposure(events, sends, config) -> [{ send, opt_out_event_id, occurred_at, recorded_at }]`; `verifyProof(record, events, config) -> MATCH | { mismatch: fields[] }`.
+- **In:** as `decide`, plus mode; stored decision records; sends. **Out:** `explain(input, config, mode: "as_known" | "hindsight") -> { decision, trace }`; `exposure(events, sends, config) -> [{ send, hindsight_reasons, late_events: [{ event_id, occurred_at, recorded_at }] }]`; `verifyProof(record, events, config) -> MATCH | { mismatch: fields[] }`.
 - **Invariants:** `explain(..., "as_known").decision` deep-equals `decide(...)`; `hindsight` uses every event with `occurred_at <= at` regardless of `recorded_at`; the trace names the event behind each reason and lists `not_yet_known` ids.
 - **Tests:** AU-01 to AU-05; AC-f2 over all 35 cases.
 
-- [ ] **1.15 Eval and gate.** `consent:eval` loads every golden file and prints one line per case (`WE-01 allow [] OK`) and totals per file; non-zero exit on any difference. `consent:lint` implemented as a scan of `src/lib/consent/**` for the forbidden tokens above. `fixtures:check` implemented. Add the three commands and `test:consent` to the clone's CI workflow only if the session can push workflow changes; otherwise record it as a You step. Update `NEXT.md` with the gate output as printed, write `docs/optbook/PHASE-2-PLAN.md`, stop.
+- [ ] **1.15 Eval and gate.** `consent:eval` loads every golden file and prints one line per case (`WE-01 allow [] OK`) and totals per file; non-zero exit on any difference. `consent:lint` implemented as the scan described in the ground rules. `fixtures:check` implemented. Add the three commands and `test:consent` to the clone's CI workflow only if the session can push workflow changes; otherwise record it as a You step. Update `NEXT.md` with the gate output as printed, write `docs/optbook/PHASE-2-PLAN.md`, stop.
 
 ## Exit criteria
 
 1. `npm run test:consent`: all green. State the number of test files and tests as printed.
-2. `npm run consent:eval`: every case `OK`; totals 35 decisions, 9 tokens, 11 preference and one-click, 4 identity, 9 erasure, 18 import, 6 audit.
+2. `npm run consent:eval`: every case `OK`; totals 35 decisions, 9 tokens, 11 preference and one-click, 4 identity, 9 erasure, 18 import cases (19 rows), 6 audit.
 3. Oracle: 2,000 of 2,000 agree, with per-outcome and per-reason counts printed.
 4. `npm run consent:lint` and `npm run fixtures:check`: clean.
 5. `npm run foundation:drift`: clean. `npm run lint` and `npm run typecheck`: clean, or recorded as "could not run here" with the error (typecheck needs the generated Prisma client; if it cannot be generated, run `npx tsc --noEmit -p tsconfig.json` anyway and report whether any error is under `src/lib/consent/`, `tests/consent/` or the three scripts: there must be none).

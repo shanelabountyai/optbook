@@ -5,7 +5,7 @@ Companion documents: `DECISIONS.md` (authoritative; outranks this PRD where they
 
 ## Scope honesty (read first; copy this block into README.md verbatim in Phase 0)
 
-> **optbook is a learning and portfolio project. It is not deployed and has no users.** Every contact, address, phone number, consent record and send in it is synthetic. It never sends a real email or SMS: the send adapters are mocks that write to a table. **optbook is not legal advice.** Its rule sets have invented names and illustrative values; they do not describe, and are not derived from, any law, regulation or carrier policy. Anything marked **[legal review]** is a rule a real deployment would need a qualified person to decide. Built by Lab Intelligence as a build-log project.
+> **optbook is a learning and portfolio project. It is not deployed and has no users.** Every contact, address, phone number, consent record and send in it is synthetic. It never sends a real email or SMS: the send adapters are mocks that write to a table. **optbook is not legal advice.** Its rule sets have invented names and illustrative values and must not be relied on as describing any law, regulation or carrier policy. Passing its tests says nothing about compliance with anything. Anything marked **[legal review]** is a rule a real deployment would need a qualified person to decide. Built by Lab Intelligence as a build-log project.
 
 ## 1. Problem
 
@@ -100,10 +100,10 @@ Field rules by type (anything else is refused at append with a named error):
 
 | Type | channel | purpose | Notes |
 |---|---|---|---|
-| `OPT_IN` | required | required, consentable | `evidence_ref` required unless `method = import` with a row reference (which is itself the evidence) |
-| `OPT_IN_CONFIRM` | required | optional (`null` = every purpose on that channel) | `method` must be `double_opt_in_confirm` |
+| `OPT_IN` | required | required, consentable | `evidence_ref` required (an import supplies its row reference) |
+| `OPT_IN_CONFIRM` | required | optional (`null` = every purpose on that channel) | `method` must be `double_opt_in_confirm`, or `import` when a consent-history import carries a confirmation date |
 | `OPT_OUT` | required | optional (`null` = the whole channel) | purpose, if given, must be consentable |
-| `GLOBAL_UNSUBSCRIBE` | null | null | all channels, all marketing purposes |
+| `GLOBAL_UNSUBSCRIBE` | null | null | all channels, all marketing purposes. There is no separate manual do-not-contact: an admin records one as a `GLOBAL_UNSUBSCRIBE` with `actor.kind = user` and an `evidence_ref` |
 | `FREQUENCY_SET` | required | null | `choice` must be a catalog key |
 | `SUPPRESSION_ADD` | required | null | `kind` required |
 | `SUPPRESSION_CLEAR` | required | null | `kind` must be `hard_bounce`; `actor.kind` must be `user`; `evidence_ref` required. A complaint cannot be cleared in v1 (D-028) |
@@ -130,7 +130,7 @@ A rule set is a JSON document with an id, a version and an `effective_from` time
 | `quiet_hours` **[legal review]** | channels, local `start`, local `end`, and what to do when the offset is unknown | `sms`, 21:00 to 08:00, deny | same |
 | `frequency` | marketing messages allowed per channel in a window | 7 days: email 3, sms 2 | 7 days: email 5, sms 3 |
 | `transactional_exempt_from` **[legal review]** | per channel, the deny reasons a transactional message bypasses | email: `GLOBAL_UNSUBSCRIBE`, `CHANNEL_OPT_OUT`, `FREQUENCY_CAP`. sms: `GLOBAL_UNSUBSCRIBE`, `TIMEZONE_UNKNOWN`, `QUIET_HOURS`, `FREQUENCY_CAP` | same |
-| `erasure.sla_days` **[legal review]** | days allowed to complete an erasure | 30 | 30 |
+| `erasure.sla_days` **[legal review]** | the target number of days to complete an erasure | 30 | 30 |
 | `one_click.scope` **[legal review]** | what a one-click unsubscribe opts out of | `channel` | `channel` |
 
 `RS-STRICT` v2 (effective `2026-12-01T00:00:00Z`) is identical to v1 except the email cap is 2. It exists so that rule-set versioning is tested (WE-34, WE-35). All numbers in this table are illustrative.
@@ -146,7 +146,7 @@ A rule set is a JSON document with an id, a version and an `effective_from` time
 1. `last_in` is the `OPT_IN` for exactly `(c, p)` with the latest `occurred_at` (ties: latest `recorded_at`, then greatest `event_id`).
 2. A restrictive event **stands** if there is no `last_in`, or its `occurred_at >= last_in.occurred_at`. At the same second, the restrictive event wins (D-009).
 3. Three restrictive scopes cover the pair: `GLOBAL_UNSUBSCRIBE`; `OPT_OUT(c, null)`; `OPT_OUT(c, p)`.
-4. The pair is **confirmed** if `last_in.method` is self-confirming and `last_in.verified_channel = c`, or there is an `OPT_IN_CONFIRM` for channel `c` (purpose `p` or `null`) with `occurred_at >= last_in.occurred_at`.
+4. The pair is **confirmed** if `last_in.method` is self-confirming and `last_in.verified_channel = c`, or there is an `OPT_IN_CONFIRM` for channel `c` (purpose `p` or `null`) with `occurred_at >= last_in.occurred_at` **and** `recorded_at >= last_in.recorded_at`. The second condition stops an opt-in that is backdated later (by an import, say) from borrowing a confirmation that was given before the ledger knew of it.
 5. A suppression of a kind on a channel is in force if there is a `SUPPRESSION_ADD` for it with no `SUPPRESSION_CLEAR` of the same channel and kind strictly later.
 6. Facts and the frequency choice take the latest `FACT_SET` / `FREQUENCY_SET` by the same tie rule as step 1.
 
@@ -154,10 +154,10 @@ Consequence worth stating plainly: a later opt-in by the person revives exactly 
 
 **Acceptance criteria**
 
-- AC-a1. Appending validates the type-specific field rules in §4.4 and refuses with a named error: `UNKNOWN_CHANNEL`, `UNKNOWN_PURPOSE`, `PURPOSE_NOT_CONSENTABLE`, `MISSING_FIELD:<name>`, `BAD_TIMESTAMP`, `OCCURRED_AFTER_RECORDED`, `DUPLICATE_EVENT_ID`, `METHOD_NOT_ALLOWED`, `COMPLAINT_NOT_CLEARABLE`, `CONTACT_ERASED`.
+- AC-a1. Appending validates the type-specific field rules in §4.4 and refuses with a named error: `UNKNOWN_CHANNEL`, `UNKNOWN_PURPOSE`, `PURPOSE_NOT_CONSENTABLE`, `MISSING_FIELD:<name>`, `BAD_FIELD:<name>` (a field that must be null or must hold a listed value and does not: a channel on a global unsubscribe, an unknown `kind`, `choice` or `fact`, a non-user actor on a clear), `BAD_TIMESTAMP`, `OCCURRED_AFTER_RECORDED`, `DUPLICATE_EVENT_ID`, `METHOD_NOT_ALLOWED`, `COMPLAINT_NOT_CLEARABLE`, `CONTACT_ERASED`. The caller sets `recorded_at` to its own "now", so "dated in the future" is exactly `OCCURRED_AFTER_RECORDED`; validation takes no clock.
 - AC-a2. For every worked example in §6, replaying the events in the listed order, in reverse, and in 20 seeded shuffles gives the same state.
 - AC-a3. No code path updates or deletes an event (Phase 2: enforced by a database trigger and a test that tries).
-- AC-a4. A validation test refuses any event whose string fields match an email or phone pattern (L-2).
+- AC-a4. Validation refuses (`BAD_FIELD:<name>`) any event with a string field containing a match for `[^\s@]+@[^\s@]+\.[^\s@]+` or `\+[1-9][0-9]{7,14}` (L-2). Ids must therefore not contain `@` or a `+` followed by digits.
 - AC-a5. The state shown anywhere in the product equals a fresh replay (Phase 2 and 3: a test compares them after every write path).
 
 ### 5b. Send-eligibility decision
@@ -170,12 +170,12 @@ decide({ at, message: { channel, purpose }, events, recent_sends, tombstone_matc
 Decision {
   outcome   allow | deny
   reasons   [{ code, detail }]            in the fixed order below
-  rule_set  { id, version }
-  basis     { lawful_basis, opt_in_event_id | null, confirm_event_id | null }
+  rule_set  { id, version } | null      null only with NO_RULE_SET_IN_FORCE
+  basis     { lawful_basis | null, opt_in_event_id | null, confirm_event_id | null }
 }
 ```
 
-`events` are the contact's ledger events (the function ignores those not yet known at `at`). `recent_sends` is the contact's send log: `{ channel, purpose, sent_at }`. `tombstone_match` says whether the contact's identifier on this channel matches an active erasure tombstone (§5d); the caller does the lookup. `config` is the catalog, the region map and the rule sets.
+`events` are the contact's ledger events (the function ignores those not yet known at `at`). `recent_sends` is the contact's send log: `{ channel, purpose, sent_at }`. `tombstone_match` says whether the contact's identifier on this channel matches an active erasure tombstone **written for a different contact** (§5d); the caller does the lookup. A contact's own open erasure request is reported by `ERASURE_IN_PROGRESS` from the ledger, not by its own tombstone (WE-23). `config` is the catalog, the region map and the rule sets.
 
 **5b.1 Reasons.** A closed set, evaluated in full (not first-match) and reported in this order:
 
@@ -194,13 +194,13 @@ Decision {
 | 10 | `TIMEZONE_UNKNOWN` | the channel has quiet hours, the offset fact is missing, and the rule set says deny |
 | 11 | `QUIET_HOURS` | the channel has quiet hours and local time at `at` is inside `[start, end)`; detail carries `next_allowed_at` (UTC) |
 | 12 | `FREQUENCY_CAP` | a cap is reached (5b.3); detail lists each cap reached with its source, count, max and window |
-| 13 | `TRANSACTIONAL_EXEMPTION` | informational, always last: lists the reasons a transactional message bypassed (5b.5) |
+| 13 | `TRANSACTIONAL_EXEMPTION` | informational, always last, present only when at least one reason was bypassed: lists the reasons a transactional message bypassed (5b.5) |
 
 `outcome` is `deny` if any reason other than `TRANSACTIONAL_EXEMPTION` remains; otherwise `allow`. `NO_RULE_SET_IN_FORCE`, `NO_CONSENT`, `TIMEZONE_UNKNOWN` and `ERASED_SUPPRESSED` were added to the owner's list of reasons because the cases exist and need a name (D-012).
 
-**5b.2 Quiet hours.** Local seconds-of-day = `(at + utc_offset_minutes * 60) mod 86400`. With `start` 21:00 and `end` 08:00 the window wraps midnight: inside if local time `>= 21:00:00` or `< 08:00:00`. 21:00:00 is inside; 08:00:00 is outside. `next_allowed_at` is the next local `end`, converted back to UTC.
+**5b.2 Quiet hours.** Local seconds-of-day = `(at + utc_offset_minutes * 60) mod 86400`. With `start` 21:00 and `end` 08:00 the window wraps midnight: inside if local time `>= 21:00:00` or `< 08:00:00`. 21:00:00 is inside; 08:00:00 is outside. A window that does not wrap (`start < end`) is inside when `start <= local < end`; `start = end` is refused at load. `utc_offset_minutes` must be an integer from -720 to 840. `next_allowed_at` is the next local `end`, converted back to UTC.
 
-**5b.3 Frequency.** Count the contact's sends in `recent_sends` on the same channel whose purpose is marketing-class, with `at - window < sent_at <= at`. A send exactly one window old is outside. Two caps may apply: the rule set's, and the contact's own choice (`weekly`, `monthly`) with its own window. Each is checked separately; the reason is raised if `count >= max` for either. Transactional sends are never counted.
+**5b.3 Frequency.** `recent_sends` holds sends already made, never the message being decided. Count the contact's sends in `recent_sends` on the same channel whose purpose is marketing-class, with `at - window < sent_at <= at`. A send exactly one window old is outside. Two caps may apply: the rule set's, and the contact's own choice (`weekly`, `monthly`) with its own window. Each is checked separately; the reason is raised if `count >= max` for either. Transactional sends are never counted.
 
 **5b.4 Rule-set selection.** Region is the latest `region` fact known at `at`; the rule set comes from the region map (default if absent); the version is the one in force at `at`.
 
@@ -230,18 +230,19 @@ The decision trusts the purpose the message declares. Guarding that declaration 
 | `unsubscribe` | 400 days | unsubscribe | unsubscribe |
 | `confirm` | 7 days | confirm | nothing (a fresh confirmation message must be requested) |
 
-A token is valid when `iat <= at < exp`. **An expired token never shows or changes preferences, but a correctly signed one still honours an unsubscribe**: an old message's unsubscribe link must not stop working, and an opt-out is the one action that is safe to accept on weaker proof (D-020) **[legal review]** (LR-8).
+A token is valid when `iat <= at < exp`. **An expired token never shows or changes preferences, but a correctly signed one still honours an unsubscribe**: this design keeps an old message's unsubscribe link working, and accepts an opt-out on weaker proof than it accepts anything else (D-020) **[legal review]** (LR-8).
 
 **One-click unsubscribe.**
 
 - A `GET` on an unsubscribe link never changes anything; it renders a page with one button. Mail scanners and link previews fetch links, and a fetch must not unsubscribe anyone or count as proof of anything.
 - A `POST` with the token performs the unsubscribe with no login, no further question and no second page required. It is idempotent.
-- What it opts out of comes from the rule set's `one_click.scope`: `channel` (default: every marketing purpose on the channel the message was delivered on), `purpose`, or `global`. The confirmation page then offers the narrower and wider choices. (D-021)
+- What it opts out of comes from the rule set's `one_click.scope`: `channel` (default: every marketing purpose on the channel the message was delivered on), `purpose`, or `global`. The confirmation page then offers the narrower and wider choices. (D-021) Nothing is emitted when a channel opt-out (or a global unsubscribe) already stands for every marketing pair on that channel. Note the interaction with §5b.5: under the illustrative rule sets a one-click on an SMS link also stops transactional SMS.
 - An inbound SMS `STOP` is mapped by the mock SMS adapter to `OPT_OUT(sms, null)` with `method = api`. Other keywords are out of scope.
 
 **Rules for turning a submission into events** (`diffPreferences`):
 
-1. Purpose toggled on where the pair is off: `OPT_IN(channel, purpose)`, `method = preference_center`, `verified_channel` = the token's `ch`. Where the pair is already on or pending: nothing.
+1. Purpose toggled on where the pair is off: `OPT_IN(channel, purpose)`, `method = preference_center`, `verified_channel` = the token's `ch`. Where the pair is already on: nothing. Where it is pending: nothing, unless the token's `ch` is that channel, in which case the same `OPT_IN` is emitted and, being self-confirming, completes the confirmation. The drafts carry `source = preference_center`, `actor = { kind: contact }` and `evidence_ref = token/<scope>/<mid>/<iat>` (the token that authorised the change).
+   A channel the contact has no identifier for is not offered; a submission that toggles it is refused whole with `NO_IDENTIFIER`.
 2. Purpose toggled off where the pair is on or pending: `OPT_OUT(channel, purpose)`. Already off: nothing.
 3. Frequency choice changed: `FREQUENCY_SET`.
 4. Global unsubscribe ticked: one `GLOBAL_UNSUBSCRIBE`, and every permissive change in the same submission is dropped. If a global unsubscribe already stands for every marketing pair, nothing.
@@ -278,7 +279,7 @@ A token is valid when `iat <= at < exp`. **An expired token never shows or chang
 
 - AC-c1. PC-01 to PC-07, OC-01 to OC-04 and TK-01 to TK-09 pass as written. TK-01 is a known-answer test: the token string must match byte for byte.
 - AC-c2. Signature comparison is constant-time.
-- AC-c3. Applying the events from `diffPreferences` and rendering again shows the submitted state, except pairs that are pending confirmation.
+- AC-c3. Applying the events from `diffPreferences` and rendering again shows the submitted state, except pairs that are pending confirmation. The property is stated for submissions without the global box ticked and for an `at` later than every existing event (a same-second opt-out would win the tie).
 - AC-c4. (Phase 3) `GET` on any tokenized route performs no write. A test fetches every public route and asserts the event count is unchanged.
 - AC-c5. (Phase 3) A bad, malformed or unknown-contact token renders the same neutral page and status, so the route cannot be used to test whether a contact exists.
 - AC-c6. (Phase 3) Public routes are rate-limited with the foundation's limiter.
@@ -289,11 +290,11 @@ A token is valid when `iat <= at < exp`. **An expired token never shows or chang
 
 **What happens, in order**
 
-1. **Request recorded.** An `ERASURE_REQUESTED` event is appended; from that second every send is denied, transactional included (WE-23). `due_at = requested_at + sla_days` from the contact's rule set at that time.
-2. **Tombstones written at request time**, one per identifier the contact has: `HMAC-SHA-256(org tombstone key, channel + ":" + normalized identifier)`, hex. Writing them now, not at completion, closes the gap in which an import could re-create the person (D-018).
+1. **Request recorded.** An `ERASURE_REQUESTED` event is appended; from that second every send is denied, transactional included (WE-23). `requested_at` is the event's `recorded_at`. `due_at = requested_at + sla_days` from the contact's rule set at that time. A second request while one is open is refused (`ERASURE_ALREADY_OPEN`); a request cannot be withdrawn in v1.
+2. **Tombstones written at request time**, one per identifier the contact has: `HMAC-SHA-256(org tombstone key, channel + ":" + normalized identifier)`, hex, stored with the id of the key used and the request id. Writing them now, not at completion, closes the gap in which an import could re-create the person (D-018).
 3. **Tasks planned**, one per system in the downstream registry. The registry is data; in this project every system is a mock (`esp_mock`, `sms_gateway_mock`, `crm_mock`, `warehouse_mock`).
 4. **Tasks run** through the state machine below.
-5. **Completion.** When all tasks are `ACKED`: an `ERASURE_COMPLETED` event is appended; the contact record (identifiers, name) and stored evidence are deleted; task payloads are scrubbed. What remains: the ledger events (which hold no identifiers, L-2), stored decisions, the tombstones, and the request with its per-system acknowledgements. Keeping the pseudonymous ledger rows and a keyed hash after erasure is **[legal review]** (LR-6) and the first question for the owner.
+5. **Completion.** When all tasks are `ACKED`: an `ERASURE_COMPLETED` event is appended (once: the caller appends the draft only if the ledger has none); the contact record (identifiers, name) and stored evidence are deleted; task payloads are scrubbed; import rows that carried the identifier are scrubbed to its hash. What remains: the ledger events (which hold no identifiers, L-2), stored decisions, the tombstones, and the request with its per-system acknowledgements. Keeping the pseudonymous ledger rows and a keyed hash after erasure is **[legal review]** (LR-6) and the first question for the owner.
 
 **Identifier normalization.** Email: trim, lowercase, must match `local@domain.tld` with no spaces. No provider-specific rewriting (no dot or plus-tag stripping) (D-029). Phone: remove spaces, hyphens, dots and parentheses; the result must match `+` followed by 8 to 15 digits, first digit not zero. A number without a `+` country prefix is refused, never guessed.
 
@@ -311,7 +312,7 @@ A token is valid when `iat <= at < exp`. **An expired token never shows or chang
 | `PENDING` | `ATTEMPT(at)` | `SENT` | `attempts + 1`; `last_attempt_at = at` |
 | `RETRY_WAIT` | `ATTEMPT(at)`, `at >= next_attempt_at` | `SENT` | same |
 | `SENT` | `ACK(at)` | `ACKED` | `acked_at = at` |
-| `SENT` | `NACK(at)`, or no `ACK` by `last_attempt_at + ack_timeout_seconds` | `RETRY_WAIT` if `attempts < max_attempts`, else `DEAD` | `next_attempt_at = failure time + backoff_seconds[attempts - 1]` |
+| `SENT` | `NACK(at)`, or no `ACK` by `last_attempt_at + ack_timeout_seconds` | `RETRY_WAIT` if `attempts < max_attempts`, else `DEAD` | `next_attempt_at = failure time + backoff_seconds[attempts - 1]`; failure time is the earlier of the `NACK` time and the timeout deadline |
 | `PENDING`, `RETRY_WAIT`, `DEAD` | `ACK(at)` | `ACKED` | a late or out-of-order acknowledgement is always accepted |
 | `ACKED` | anything | `ACKED` | no change |
 | `DEAD` | `REQUEUE(at)` by a user | `RETRY_WAIT` | `attempts = 0`; `requeues + 1`; `next_attempt_at = at` |
@@ -330,6 +331,8 @@ A token is valid when `iat <= at < exp`. **An expired token never shows or chang
 | ER-07 | the `DEAD` task of ER-05 receives `ACK` at 2026-12-03T10:00:00Z, the others acknowledged earlier | task `ACKED`; request `COMPLETED`, `completed_late` true |
 | ER-08 | a second `ACK` for an `ACKED` task | no change, no error |
 | ER-09 | `ATTEMPT` on a task in `RETRY_WAIT` one second before `next_attempt_at` | `INVALID_TRANSITION`, task unchanged |
+
+**Not covered in v1** (each is listed in §8, Q-13): an erasure request for an identifier with no contact on file; rotation of the tombstone key; an old link carrying the erased contact's id (it resolves to the neutral page of AC-c5).
 
 **Re-subscribing after erasure.** A tombstone blocks imports and any contact created by a system. If the same person later opts in themselves, through a form with a confirmed opt-in, the tombstone is marked lifted (never deleted) and a new contact starts with an empty ledger. Nothing else lifts a tombstone. **[legal review]** (LR-7). Lifting is a Phase 2 write path; in Phase 1 the decision only receives `tombstone_match`.
 
@@ -351,35 +354,36 @@ A token is valid when `iat <= at < exp`. **An expired token never shows or chang
 | Outcome | Meaning |
 |---|---|
 | `APPEND` | one or more events will be added and they change, or may later change, the contact's state |
-| `APPEND_NO_EFFECT` | the event will be added as history, but the contact's current state for that pair is the same with or without it (a newer ledger event already decides it) |
-| `DUPLICATE` | an event with the same contact, type, channel, purpose and `occurred_at` already exists (in the ledger or earlier in the file); nothing is written |
+| `APPEND_NO_EFFECT` | permissive rows only: the opt-in will be added as history, but whether the pair is on, pending or off is the same with or without it (a newer ledger event already decides it). Restrictive and suppression rows are never given this outcome |
+| `DUPLICATE` | an event with the same contact, type, channel, purpose, `kind` and `occurred_at` already exists in the ledger, or in a lower-numbered row of the file; nothing is written |
 | `HOLD_REVIEW` | a permissive row that would turn a "no" into a "yes"; nothing is written; a person must decide |
 | `SKIP_ERASED` | a restrictive row for an identifier that matches an erasure tombstone; nothing is needed |
 | `REJECT` | the row cannot be used; carries one reason code |
 
-Reject reasons: `MISSING_IDENTIFIER`, `BAD_IDENTIFIER`, `UNKNOWN_CHANNEL`, `UNKNOWN_PURPOSE`, `PURPOSE_NOT_CONSENTABLE`, `UNKNOWN_STATUS`, `BAD_DATE`, `FUTURE_DATE`, `MISSING_DATE_OPT_IN`, `ERASED_IDENTIFIER`. Notes that can accompany an accepted row: `CONTACT_CREATED`, `DATE_DEFAULTED`, `DATE_ONLY`, `WILL_BE_PENDING_DOUBLE_OPT_IN`.
+Reject reasons: `MISSING_IDENTIFIER`, `BAD_IDENTIFIER`, `UNKNOWN_CHANNEL`, `UNKNOWN_PURPOSE`, `PURPOSE_NOT_CONSENTABLE`, `UNKNOWN_STATUS`, `BAD_DATE`, `FUTURE_DATE`, `MISSING_DATE_OPT_IN`, `ERASED_IDENTIFIER`. Notes that can accompany an accepted row (`APPEND` or `APPEND_NO_EFFECT`): `CONTACT_CREATED`, `DATE_DEFAULTED`, `DATE_ONLY` (the date cell had no time), `PURPOSE_WIDENED`, `WILL_BE_PENDING_DOUBLE_OPT_IN`.
 
 **Rules**
 
 1. **Status vocabulary is data**, matched after trimming and lowercasing. Permissive: `subscribed`, `opted in`, `opt-in`, `optin`, `yes`, `y`, `true`, `1`, `active`, and `pending`, `unconfirmed` (an opt-in with no confirmation). Restrictive: `unsubscribed`, `opted out`, `opt-out`, `optout`, `no`, `n`, `false`, `0`, `removed`. Suppression: `bounced`, `hard bounce` (hard bounce); `complained`, `spam`, `abuse` (complaint). Anything else, including an empty cell, is `UNKNOWN_STATUS`. Vendor words whose meaning varies are left out on purpose and rejected so that a person maps them. A suppression row applies to the whole channel; its purpose cell is ignored.
 2. **Dates are parsed only in the declared format**: `iso` (`YYYY-MM-DD` or the full UTC timestamp), `mdy` (`MM/DD/YYYY`) or `dmy` (`DD/MM/YYYY`). A cell that does not parse under the declared format is `BAD_DATE`; the format is never guessed per row.
 3. **A date without a time** is placed where the restrictive reading wins: a permissive row at `00:00:00Z`, a restrictive row at `23:59:59Z` of that day, and never later than the import time. So an opt-in and an opt-out on the same day leave the person opted out.
-4. **A restrictive row with no date** is accepted and dated at the import time (`DATE_DEFAULTED`). **A permissive row with no date** is `MISSING_DATE_OPT_IN`: a claimed consent with no date proves nothing.
-5. **Hold rule.** A permissive row is `HOLD_REVIEW` when, at the row's own date, the ledger (plus the accepted rows of the same file) already says no for that pair: a global unsubscribe, a channel opt-out or a purpose opt-out stands at that moment. This is the case "an import disagrees with a newer ledger event, and the import is the newer one". The opposite case, an old permissive row and a newer ledger opt-out, is `APPEND_NO_EFFECT`.
+4. **A restrictive or suppression row is never dropped for a bad cell.** With no date, an unparseable date or a future date it is accepted and dated at the import time (`DATE_DEFAULTED`). With a blank or unknown purpose it becomes a channel opt-out, `OPT_OUT(c, null)` (`PURPOSE_WIDENED`). The one exception is a restrictive row naming a non-consentable purpose (IM-12), which is rejected so that a person looks at it: widening it would switch off marketing the person may not have meant. **A permissive row with no date** is `MISSING_DATE_OPT_IN`: this design does not accept an opt-in it cannot place in time.
+5. **Hold rule.** A permissive row is `HOLD_REVIEW` when, at the row's own date, the ledger (plus the accepted rows of the same file) already says no for that pair: a global unsubscribe, a channel opt-out or a purpose opt-out stands at that moment. This is the case "an import disagrees with a newer ledger event, and the import is the newer one". The opposite case, an old permissive row and a newer ledger opt-out, is `APPEND_NO_EFFECT`. The hold rule is checked first.
 6. **Restrictive and suppression rows are always appended** unless they are duplicates.
 7. **Erased identifiers.** A permissive row whose identifier matches a tombstone is `REJECT / ERASED_IDENTIFIER`; a restrictive one is `SKIP_ERASED`.
 8. **Unknown identifiers** create a contact (`CONTACT_CREATED`), for restrictive rows as well: an opt-out for someone not yet on file must still be remembered.
 9. Rows are planned in ledger order (by `occurred_at`, restrictive last on ties), not file order, so the result does not depend on how the file was sorted.
 10. Imported events carry `method = import`, `source` = the mapping's label, `actor = { kind: import, id: <batch id> }`, `evidence_ref = import/<batch id>#row<n>` and `recorded_at` = the import time. A confirmation date column, when mapped and filled, adds an `OPT_IN_CONFIRM`.
-11. A row gets exactly one reject reason. Checks run in this order and stop at the first failure: identifier (`MISSING_IDENTIFIER`, `BAD_IDENTIFIER`), channel, purpose (`UNKNOWN_PURPOSE`, `PURPOSE_NOT_CONSENTABLE`; skipped for suppression rows), status, date (`BAD_DATE`, `FUTURE_DATE`, `MISSING_DATE_OPT_IN`), tombstone (`ERASED_IDENTIFIER`).
+11. A row gets exactly one reject reason. Checks run in this order and stop at the first failure: identifier (`MISSING_IDENTIFIER`, `BAD_IDENTIFIER`), channel, status, purpose (`PURPOSE_NOT_CONSENTABLE` for any row but a suppression; `UNKNOWN_PURPOSE` for permissive rows only), date (`BAD_DATE`, `FUTURE_DATE`, `MISSING_DATE_OPT_IN`; permissive rows only), tombstone (`ERASED_IDENTIFIER`).
 12. `WILL_BE_PENDING_DOUBLE_OPT_IN` is attached only to an `APPEND` of an opt-in that the contact's rule set will hold as pending. `CONTACT_CREATED` is attached to the contact's first accepted row in ledger order.
-13. A held row is resolved by a person (Phase 3): approving it appends the opt-in with that user as actor and a required evidence reference; declining it records the decision and writes nothing to the ledger.
+13. The mapping has no region or offset column in v1: a contact created by an import has no facts, so it falls under the default rule set and its SMS is `TIMEZONE_UNKNOWN` until facts are set. Re-importing a file re-appends its undated restrictive rows at the new import time; that is harmless and accepted.
+14. A held row is resolved by a person (Phase 3): approving it appends the opt-in with that user as actor and a required evidence reference; declining it records the decision and writes nothing to the ledger.
 
 **Worked examples.** Import time 2026-11-20T15:00:00Z, format `iso`, channel constant `email`. Ledger before the import, for the contact whose address is `ada@example.com`: `OPT_IN(email, newsletter)` 2026-03-01T10:00:00Z; `OPT_IN_CONFIRM(email)` 2026-03-01T10:05:00Z; `OPT_OUT(email, newsletter)` 2026-06-10T09:00:00Z. `gone@example.com` matches a tombstone. No other address is on file.
 
 | ID | Row (identifier, purpose, status, date) | Outcome | Why |
 |---|---|---|---|
-| IM-01 | `ada@example.com`, newsletter, `subscribed`, `2026-02-01` | `APPEND_NO_EFFECT` | opt-in dated before the standing opt-out of 06-10; history only |
+| IM-01 | `ada@example.com`, newsletter, `subscribed`, `2026-02-01` | `APPEND_NO_EFFECT` + `DATE_ONLY` | opt-in dated before the standing opt-out of 06-10; history only |
 | IM-02 | `Ada@Example.com `, newsletter, `subscribed`, `2026-09-01` | `HOLD_REVIEW` | on 09-01 the ledger says no (purpose opt-out of 06-10 stands) |
 | IM-03 | `ada@example.com`, newsletter, `unsubscribed`, `2026-06-10T09:00:00Z` | `DUPLICATE` | same event already in the ledger |
 | IM-04 | `ada@example.com`, promotional, `unsubscribed`, (blank) | `APPEND` + `DATE_DEFAULTED` | `OPT_OUT(email, promotional)` at 2026-11-20T15:00:00Z |
@@ -392,10 +396,10 @@ Reject reasons: `MISSING_IDENTIFIER`, `BAD_IDENTIFIER`, `UNKNOWN_CHANNEL`, `UNKN
 | IM-11 | `gone@example.com`, newsletter, `unsubscribed`, `2026-10-05` | `SKIP_ERASED` | |
 | IM-12 | `ada@example.com`, transactional, `unsubscribed`, `2026-10-05` | `REJECT / PURPOSE_NOT_CONSENTABLE` | |
 | IM-13 | `ada@example.com`, newsletter, `unsubscribed`, `2026-07-04` | `APPEND` + `DATE_ONLY` | `OPT_OUT` at 2026-07-04T23:59:59Z |
-| IM-14 | two rows: `bo@example.com`, newsletter, `subscribed`, `2026-08-08` and `bo@example.com`, newsletter, `unsubscribed`, `2026-08-08` | first `APPEND_NO_EFFECT` (+ `CONTACT_CREATED`), second `APPEND` | opt-in at 00:00:00Z, opt-out at 23:59:59Z; the person ends opted out whichever row comes first in the file |
+| IM-14 | two rows: `bo@example.com`, newsletter, `subscribed`, `2026-08-08` and `bo@example.com`, newsletter, `unsubscribed`, `2026-08-08` | first `APPEND_NO_EFFECT` + `CONTACT_CREATED`, `DATE_ONLY`; second `APPEND` + `DATE_ONLY` | opt-in at 00:00:00Z, opt-out at 23:59:59Z; the person ends opted out whichever row comes first in the file |
 | IM-15 | `ada@example.com`, newsletter, `subscribed`, `03/04/2025` | `REJECT / BAD_DATE` | the file was declared `iso` |
-| IM-16 | `cy@example.com`, newsletter, `bounced`, `2026-10-01` | `APPEND` + `CONTACT_CREATED` | `SUPPRESSION_ADD(email, hard_bounce)` at 2026-10-01T23:59:59Z |
-| IM-17 | `di@example.com`, newsletter, `subscribed`, `2026-10-05`, confirmation date `2026-10-06` | `APPEND` + `CONTACT_CREATED` | `OPT_IN` at 2026-10-05T00:00:00Z and `OPT_IN_CONFIRM(email)` at 2026-10-06T00:00:00Z |
+| IM-16 | `cy@example.com`, newsletter, `bounced`, `2026-10-01` | `APPEND` + `CONTACT_CREATED`, `DATE_ONLY` | `SUPPRESSION_ADD(email, hard_bounce)` at 2026-10-01T23:59:59Z |
+| IM-17 | `di@example.com`, newsletter, `subscribed`, `2026-10-05`, confirmation date `2026-10-06` | `APPEND` + `CONTACT_CREATED`, `DATE_ONLY` | `OPT_IN` at 2026-10-05T00:00:00Z and `OPT_IN_CONFIRM(email)` (`method = import`) at 2026-10-06T00:00:00Z |
 | IM-18 | (blank), newsletter, `yes`, `2026-10-05` | `REJECT / MISSING_IDENTIFIER` | |
 
 The preview summary for these 19 rows: `APPEND` 6, `APPEND_NO_EFFECT` 2, `DUPLICATE` 1, `HOLD_REVIEW` 1, `SKIP_ERASED` 1, `REJECT` 8 (one each of the reasons shown in IM-05, IM-07, IM-08, IM-09, IM-10, IM-12, IM-15, IM-18).
@@ -403,8 +407,8 @@ The preview summary for these 19 rows: `APPEND` 6, `APPEND_NO_EFFECT` 2, `DUPLIC
 **Acceptance criteria**
 
 - AC-e1. IM-01 to IM-18 produce the outcomes, notes, event types and timestamps shown, and the summary counts above.
-- AC-e2. The plan is the same for any ordering of the file's rows (row numbers in `evidence_ref` aside).
-- AC-e3. Property: for any file, no contact-and-pair that the ledger says "no" for before the import is "yes" after committing it.
+- AC-e2. For any ordering of the file's rows, the plan holds the same multiset of (row content, outcome, reason, notes, drafts without `evidence_ref`). Which of two identical rows is the `DUPLICATE` follows row number.
+- AC-e3. Property: for any file, no contact-and-pair with a standing opt-out of any scope before the import (a "no") is on (`pairStatus = on`, a "yes") after applying the plan's events.
 - AC-e4. Planning writes nothing. (Phase 2) Commit writes exactly the planned events in one transaction, and is refused with `LEDGER_CHANGED` if the fingerprint no longer matches.
 - AC-e5. The CSV reader handles quoted fields, doubled quotes, commas and newlines inside quotes, CRLF and LF, a UTF-8 byte-order mark, and a missing trailing newline; a row with the wrong number of columns is rejected by row number, not silently shifted.
 - AC-e6. (Phase 3) Every row of a preview is visible with its outcome and reason, filterable by outcome, and downloadable as CSV.
@@ -414,14 +418,14 @@ The preview summary for these 19 rows: `APPEND` 6, `APPEND_NO_EFFECT` 2, `DUPLIC
 **Behaviour.** For any contact, message and past time, optbook shows the decision and what it rested on.
 
 - **As known.** `explain(input, config)` returns the same decision `decide` returns for time T, plus a trace: the facts and rule-set version used, the event behind each reason, the basis for an allow, and the ids of events that existed but were **not yet known** at T (recorded later).
-- **In hindsight.** The same question using every event with `occurred_at <= T`, whenever it was recorded. The difference between the two views is the useful one for operations: sends that were allowed on what was known and would have been denied on what was true. `exposure(events, sends, config)` lists them (the "late opt-out" report).
-- **Stored decisions.** (Phase 2) Every decision made for a mock send is stored with its inputs' fingerprint (SHA-256 of canonical JSON), the outcome, reasons, rule set and version. `verifyProof(record, events, config)` recomputes it and returns `MATCH` or `MISMATCH` with the differing fields.
+- **In hindsight.** The same question using every event with `occurred_at <= T`, whenever it was recorded. The difference between the two views is the useful one for operations: sends that were allowed on what was known and would have been denied on what was true. `exposure(events, sends, config)` lists them (the "late opt-out" report), each with the hindsight reasons and the ids of the late-recorded events behind them; each send is evaluated at its `sent_at` against the other sends that are strictly earlier.
+- **Stored decisions.** (Phase 2) Every decision made for a mock send is stored with its inputs other than the events (`at`, message, `recent_sends`, `tombstone_match`), the fingerprint of the full input (SHA-256 of canonical JSON), the outcome, reasons, rule set and version. `verifyProof(record, events, config)` recomputes it from the record's inputs and the ledger and returns `MATCH` or `MISMATCH` with the differing fields.
 
 | ID | Case | Expected |
 |---|---|---|
 | AU-01 | WE-27's ledger, as known at 2026-11-20T15:00:00Z | allow; `not_yet_known` lists the opt-out recorded on 11-21 |
 | AU-02 | the same, in hindsight at 2026-11-20T15:00:00Z | deny, `PURPOSE_OPT_OUT` |
-| AU-03 | `exposure` over WE-27's ledger with one newsletter send at 2026-11-20T15:00:00Z | that send is listed, with the opt-out's `occurred_at` and `recorded_at` |
+| AU-03 | `exposure` over WE-27's ledger with one newsletter send at 2026-11-20T15:00:00Z | that send is listed, with hindsight reason `PURPOSE_OPT_OUT` and the opt-out's event id, `occurred_at` and `recorded_at` |
 | AU-04 | `verifyProof` on a stored record equal to WE-05's expected decision | `MATCH` |
 | AU-05 | the same record with `outcome` changed to `allow` | `MISMATCH`, field `outcome` |
 | AU-06 | canonical JSON of `{"b":1,"a":[true,null,"x"],"c":{"z":"é","y":-3}}` | `{"a":[true,null,"x"],"b":1,"c":{"y":-3,"z":"é"}}`, SHA-256 `14a1892f6065261941f36fac5ca1109fd07e941f39ba553de2a189d9d0ea78bb` |
@@ -437,7 +441,7 @@ The preview summary for these 19 rows: `APPEND` 6, `APPEND_NO_EFFECT` 2, `DUPLIC
 
 These 35 cases are the contract for Phase 1. The table is the readable form; `GOLDEN-DECISIONS.md` holds the same cases as JSON with every field, and is what the tests load. Both were produced together on 2026-11-26. If they ever disagree, stop and report; do not pick one.
 
-Reading the table: all times are UTC. `IN email/newsletter` is an `OPT_IN`; `CONFIRM email` is an `OPT_IN_CONFIRM` with no purpose; `OUT email/*` is a channel opt-out. Every event is recorded when it occurred unless the row says otherwise. "Offset" is `utc_offset_minutes` (-360 is six hours behind UTC). Under "Sends in the log", the year is 2026 and each send is a marketing message on the same channel as the message being decided.
+Reading the table: all times are UTC. `IN email/newsletter` is an `OPT_IN`; `CONFIRM email` is an `OPT_IN_CONFIRM` with no purpose; `OUT email/*` is a channel opt-out. Every event is recorded when it occurred unless the row says otherwise. "Region, offset" are the contact's two `FACT_SET` events (dated 2026-01-05), shown in their own column and left out of the events column, so "none" there means no other events. "Offset" is `utc_offset_minutes` (-360 is six hours behind UTC). Under "Sends in the log", the year is 2026 and each send is a marketing message on the same channel as the message being decided.
 
 | ID | Case | Region, offset | Ledger events known to the system (UTC) | Sends in the log (UTC) | Message | T (UTC) | Rule set | Decision | Reasons, in order |
 |---|---|---|---|---|---|---|---|---|---|
@@ -496,12 +500,15 @@ optbook models these as data and takes no position on what the values should be.
 | LR-11 | Whether a complaint may ever be cleared | D-028 |
 | LR-12 | Which rule set applies when a contact's region is unknown | region map default |
 | LR-13 | Whether imported consent from another system is valid at all without its original evidence | §5e |
+| LR-14 | Whether an erasure request should stop transactional messages from the moment it is received | §5d step 1 |
+| LR-15 | Whether complaint and hard-bounce suppression should block transactional messages | §5b.5 |
+| LR-16 | Whether a change of region may move a contact to a rule set that asks less of the sender | §5b.4 |
 
 ## 8. Open questions (defaults are in force until the owner says otherwise)
 
 | # | Question | Default | Why |
 |---|---|---|---|
-| Q-1 | After erasure, keep the pseudonymous ledger rows and stored decisions, or purge them? | Keep. They hold no identifiers (L-2). | Past sends stay explainable, and the ledger stays append-only. Purging is the stricter reading; it is one extra step at completion if chosen. |
+| Q-1 | After erasure, keep the pseudonymous ledger rows and stored decisions, or purge them? | Keep. They hold no identifiers (L-2). | Past sends stay explainable, and the ledger stays append-only. Purging is the alternative; it is one extra step at completion if chosen. |
 | Q-2 | What does one-click unsubscribe opt out of? | Every marketing purpose on that channel. | Someone who clicks unsubscribe and then receives a different topic from the same sender reads it as being ignored. Narrower and wider choices are offered on the next page. |
 | Q-3 | May a person's own later opt-in revive a pair after a global unsubscribe? | Yes, for exactly the pair they chose, and never from an import. | Otherwise a person who unsubscribed once can never come back by their own action. |
 | Q-4 | Fixed UTC offset, or named time zones with daylight saving, for quiet hours? | Fixed offset. | It keeps the engine free of time-zone data and fully deterministic. The cost: a real deployment would be an hour wrong for part of the year unless offsets are maintained. |
@@ -510,9 +517,10 @@ optbook models these as data and takes no position on what the values should be.
 | Q-7 | Where does evidence live, and for how long? | Phase 2 stores a small JSON snapshot per `evidence_ref`, deleted on erasure; no retention schedule. | Enough to show the pointer design. |
 | Q-8 | Are rule sets edited in the product? | No. JSON files in the repo, validated at load, changed by pull request. | The review of a rule change is then the pull request itself. |
 | Q-9 | Do the four users need distinct roles? | No new roles: foundation `owner`/`admin` act as marketing ops admin; `member` covers campaign builder and reviewer (read and check only). | The foundation's authorization paths are template-owned; a reviewer-only role would need an upstream change. |
-| Q-10 | Should transactional SMS be blocked after an SMS channel opt-out, while transactional email is not blocked by an email opt-out? | Yes (as data). | The cautious reading on the channel where an unwanted message is most intrusive. |
+| Q-10 | Should transactional SMS be blocked after an SMS channel opt-out, while transactional email is not blocked by an email opt-out? | Yes (as data). | A design choice that favours not messaging on the channel where an unwanted message is most intrusive. |
 | Q-11 | Should the erasure clock pause while a task is `DEAD` and waiting for a person? | No. | A paused clock hides exactly the requests that need attention. |
 | Q-12 | Does the frequency cap count messages across all marketing purposes together? | Yes, per channel. | It is the contact's experience of volume that the cap protects. |
+| Q-13 | Erasure edges: a request for an identifier not on file; tombstone-key rotation; uploaded import files and rejected rows that name people who never became contacts. | Not built in v1. Phase 2 keeps no uploaded file after commit or discard and stores rejected and held rows with the identifier hashed. | Each needs a storage decision that belongs with the schema. |
 
 ## 9. Phase plan
 
@@ -522,7 +530,7 @@ Each phase is one branch and one pull request, never merged by the run that wrot
 |---|---|---|
 | 0. Clone setup | saas-foundation v1.7.0 tree, renamed to optbook on port 8400, `billing` removed, scope banner in README | `foundation:drift`, typecheck, lint and build pass (or each is recorded as "could not run here" with the reason) |
 | 1. Pure engines | `src/lib/consent/`: time, canonical JSON, schemas, rule sets, ledger replay, decision, identity, tokens, preferences, erasure, import, audit. No database writes, no UI. | every worked example in this PRD passes; `consent:lint` clean; the oracle comparison agrees |
-| 2. Schema and persistence | clone-owned tables, append-only trigger, RLS policies, export hooks, mock send log, stored decisions, erasure worker on mocks, import commit | the engines' results are unchanged when run through the database; AC-a3, AC-d4, AC-d5, AC-e4 |
+| 2. Schema and persistence | clone-owned tables, append-only trigger, RLS policies, export hooks, mock send log, stored decisions, erasure worker on mocks, import commit | the engines' results are unchanged when run through the database; AC-a3, AC-a5, AC-d4, AC-d5, AC-e4 |
 | 3. UI and preference center | admin screens (contacts, timeline and "why", eligibility check, imports, erasure queue, rule sets read-only) and the public tokenized routes | AC-c4 to AC-c6, AC-d6, AC-e6, AC-f4; accessibility pass |
 | 4. Demo seed, e2e, closeout | seeded synthetic org, Playwright paths for each user in §2, README, closeout notes | e2e green in CI; README states what was measured and what was not |
 

@@ -15,7 +15,7 @@ Rules:
 - **Never edit an expected value to make a test pass.** If the engine disagrees with a case, stop and show the owner both derivations.
 - Everything here is synthetic. `evidence_ref` values point at nothing.
 - The cases were derived on 2026-11-26 by the run that wrote the PRD, using a throwaway implementation that is not in the repository. That is one author checking their own reading, not independent verification (PRD §10).
-- `basis.opt_in_event_id` and `basis.confirm_event_id` are filled only when the outcome is `allow`; `opt_in_event_id` only when the lawful basis is `consent`. `confirm_event_id` is filled only when the rule set requires confirmation on the channel and a qualifying `OPT_IN_CONFIRM` exists (the latest one, same tie rule as below); it is `null` when no confirmation was required, or when the opt-in was self-confirming and no confirm event exists.
+- `basis.opt_in_event_id` and `basis.confirm_event_id` are filled only when the outcome is `allow`; `opt_in_event_id` only when the lawful basis is `consent`. `confirm_event_id` is filled only when the rule set requires confirmation on the channel and a qualifying `OPT_IN_CONFIRM` exists (PRD §5a step 4, including the `recorded_at` condition; the latest one, same tie rule as below); it is `null` when no confirmation was required, or when the opt-in was self-confirming and no confirm event exists.
 - In a reason's `detail`: `event_id` is the standing event with the latest `occurred_at` (ties: latest `recorded_at`, then greatest `event_id`); `QUIET_HOURS` carries `next_allowed_at`; `FREQUENCY_CAP` carries `caps`, rule-set cap first; `TRANSACTIONAL_EXEMPTION` carries `exempted` in reason order; reasons with nothing to point at carry `{}`.
 
 ```json

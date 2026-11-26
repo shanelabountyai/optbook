@@ -51,6 +51,19 @@ The worked examples in `PRD.md` and `GOLDEN-DECISIONS.md` encode these decisions
 | D-029 | **Email normalization is trim and lowercase only.** No provider-specific rewriting. Phone numbers must arrive with a `+` country prefix. | Guessing which addresses are "the same" is how two people get merged. | |
 | D-030 | **Each phase is one branch and one draft pull request, never merged by the run that wrote it.** Phase 0 and Phase 1 branches are cut from `prd` while its pull request is open. | The kit is only on `prd`. | |
 
+## Changes made after the independent review (2026-11-26)
+
+| # | Decision | Why | Alternative not taken |
+|---|---|---|---|
+| D-031 | **`tombstone_match` means a match with a tombstone written for a different contact.** A contact's own open erasure is reported by `ERASURE_IN_PROGRESS` only. | Tombstones are written at request time (D-018); without this every erasing contact would also match itself and WE-23 would be wrong. Reviewer P-1. | Writing tombstones only at completion. |
+| D-032 | **A confirmation covers an opt-in only if it both occurred and was recorded at or after it.** | Otherwise a backdated import of a new purpose borrows an old confirmation. Reviewer P-2. No golden case changed. | |
+| D-033 | **A restrictive or suppression import row is never dropped for a bad cell**: a missing, unparseable or future date becomes the import time; a blank or unknown purpose becomes a channel opt-out. Exception: a row naming a non-consentable purpose is rejected for a person to look at. | A list-level unsubscribe export with no purpose column is an ordinary file; rejecting its rows would lose opt-outs. Reviewer M-1. | Rejecting them, as first written. |
+| D-034 | **Import details:** `APPEND_NO_EFFECT` applies to permissive rows only; the duplicate key includes `kind`; an imported confirmation carries `method = import`; `DATE_ONLY` is noted on every accepted row whose date cell had no time. | Reviewer X-1, X-2, X-3, M-2: the first draft's table contradicted its own definitions. | |
+| D-035 | **No manual do-not-contact suppression kind.** An admin records one as a `GLOBAL_UNSUBSCRIBE` with a user actor and evidence. | Reviewer M-3; one mechanism instead of two. | A `manual` suppression kind. |
+| D-036 | **A pending pair toggled on again from a link delivered on that pair's own channel emits a self-confirming opt-in. A channel with no identifier on file is not offered** (`NO_IDENTIFIER`). | Reviewer M-4. | |
+| D-037 | **Stored decisions keep their non-event inputs, not only a fingerprint; `exposure` reports hindsight reasons and late events, not only opt-outs; a send is never counted against itself.** | Reviewer X-9. | |
+| D-038 | **Not done from the review, on purpose:** complete JSON for the non-decision tables (X-14; mitigated by committing the transcription before engine code and asserting only what the PRD states); region and offset columns in the import mapping (M-5; imported contacts fall under the default rule set); erasure edge cases (P-5; listed as Q-13). | Each is a scope increase the owner should choose. | |
+
 ## Decisions for the owner to confirm (defaults in force)
 
 1. **After erasure, keep the pseudonymous ledger rows and stored decisions?** Default: keep (D-018, Q-1).
@@ -61,4 +74,4 @@ The worked examples in `PRD.md` and `GOLDEN-DECISIONS.md` encode these decisions
 
 ## Review log
 
-Filled in by the independent review of 2026-11-26 (see the pull request for the full findings).
+2026-11-26: one fresh agent, given only `PRD.md`, `IMPLEMENTATION_PLAN.md`, `PHASE-0-PLAN.md` and `PHASE-1-PLAN.md`, reviewed as a marketing-ops lead and as a privacy reviewer. It reported 8 must-fix, 15 should-fix and 3 nits, and recomputed all 35 decision rows, the token, hash and canonical-JSON known answers and the erasure table without finding a wrong value. The must-fix items were contradictions between the import table and its definitions, the tombstone and erasure-in-progress overlap, a `pairStatus` test that could not pass, and a commit-ordering error in the Phase 0 plan. All 8 must-fix items and 13 should-fix items were fixed in the documents (D-031 to D-037); what was not done is D-038. Full list in the pull request.
