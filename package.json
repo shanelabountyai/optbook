@@ -30,7 +30,11 @@
     "new-project": "tsx scripts/new-project.ts",
     "foundation:drift": "tsx scripts/foundation-drift.ts",
     "foundation:status": "tsx scripts/foundation-status.ts",
-    "foundation:check-modules": "tsx scripts/foundation-check-modules.ts"
+    "foundation:check-modules": "tsx scripts/foundation-check-modules.ts",
+    "test:consent": "vitest run tests/consent",
+    "consent:lint": "tsx scripts/consent-lint.ts",
+    "consent:eval": "tsx scripts/consent-eval.ts",
+    "fixtures:check": "tsx scripts/fixtures-check.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",

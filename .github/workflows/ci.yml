@@ -58,6 +58,9 @@ jobs:
           echo "DATABASE_URL_SYSTEM=$DATABASE_URL" >> "$GITHUB_ENV"
           echo "DATABASE_URL=postgresql://app_rw:app_rw@localhost:5432/$db?connection_limit=8&pool_timeout=20" >> "$GITHUB_ENV"
       - run: npx vitest run
+      - run: npm run consent:lint
+      - run: npm run consent:eval
+      - run: npm run fixtures:check
       # Production build, served — the way it ships. login.spec.ts drives a real page.
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
