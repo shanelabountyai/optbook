@@ -1,0 +1,524 @@
+{
+ "schema": "optbook.golden.erasure/1",
+ "note": "Transcribed from PRD §5d by the Phase 1 run. Synthetic. Acknowledgement times other than those the PRD names, and the NACK timings of ER-05, are this run's illustrative choices; expected values are only what the PRD table states.",
+ "key": "test-only-key-not-a-secret",
+ "policy": {
+  "ack_timeout_seconds": 3600,
+  "backoff_seconds": [
+   300,
+   1800,
+   7200,
+   43200,
+   86400
+  ],
+  "max_attempts": 6,
+  "warn_days": 5
+ },
+ "registry": [
+  "esp_mock",
+  "sms_gateway_mock",
+  "crm_mock",
+  "warehouse_mock"
+ ],
+ "request": {
+  "request_id": "er_0001",
+  "contact_id": "c_0001",
+  "at": "2026-11-01T00:00:00Z"
+ },
+ "start_case": "WE-01",
+ "identifiers": [
+  {
+   "channel": "email",
+   "raw": "ada@example.com"
+  },
+  {
+   "channel": "sms",
+   "raw": "+15550100199"
+  }
+ ],
+ "cases": [
+  {
+   "id": "ER-01",
+   "title": "plan for a contact with an email and a phone, 4 systems",
+   "input": {
+    "op": "plan"
+   },
+   "expected": {
+    "due_at": "2026-12-01T00:00:00Z",
+    "event_drafts": [
+     "ERASURE_REQUESTED"
+    ],
+    "tombstones": 2,
+    "tasks": {
+     "esp_mock": "PENDING",
+     "sms_gateway_mock": "PENDING",
+     "crm_mock": "PENDING",
+     "warehouse_mock": "PENDING"
+    }
+   }
+  },
+  {
+   "id": "ER-02",
+   "title": "all 4 attempted at 00:01:00 and acknowledged, the last at 00:10:00",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "esp_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "esp_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:04:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:06:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:08:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:10:00Z"
+     }
+    ],
+    "status_at": "2026-11-01T00:10:00Z"
+   },
+   "expected": {
+    "state": "COMPLETED",
+    "completed_at": "2026-11-01T00:10:00Z",
+    "completed_late": false,
+    "event_drafts": [
+     "ERASURE_COMPLETED"
+    ]
+   }
+  },
+  {
+   "id": "ER-03",
+   "title": "crm_mock ATTEMPT then NACK",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:01:05Z"
+     }
+    ],
+    "status_at": "2026-11-01T00:01:05Z"
+   },
+   "expected": {
+    "task": {
+     "system": "crm_mock",
+     "state": "RETRY_WAIT",
+     "attempts": 1,
+     "next_attempt_at": "2026-11-01T00:06:05Z"
+    }
+   }
+  },
+  {
+   "id": "ER-04",
+   "title": "crm_mock ATTEMPT, nothing further, status at 01:01:00",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     }
+    ],
+    "status_at": "2026-11-01T01:01:00Z"
+   },
+   "expected": {
+    "task": {
+     "system": "crm_mock",
+     "state": "RETRY_WAIT",
+     "next_attempt_at": "2026-11-01T01:06:00Z"
+    }
+   }
+  },
+  {
+   "id": "ER-05",
+   "title": "crm_mock fails 6 attempts",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "esp_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "esp_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:01:05Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:06:05Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:06:10Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:36:10Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:36:15Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T02:36:15Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T02:36:20Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T14:36:20Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T14:36:25Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-02T14:36:25Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-02T14:36:30Z"
+     }
+    ],
+    "status_at": "2026-11-02T14:36:30Z"
+   },
+   "expected": {
+    "state": "BLOCKED",
+    "task": {
+     "system": "crm_mock",
+     "state": "DEAD"
+    }
+   }
+  },
+  {
+   "id": "ER-06",
+   "title": "one task still RETRY_WAIT: at_risk and overdue at four times",
+   "input": {
+    "op": "status_series",
+    "events": [
+     {
+      "system": "esp_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "esp_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:01:05Z"
+     }
+    ],
+    "status_at": [
+     "2026-11-25T23:59:59Z",
+     "2026-11-26T00:00:00Z",
+     "2026-12-01T00:00:00Z",
+     "2026-12-01T00:00:01Z"
+    ]
+   },
+   "expected": {
+    "at_risk": [
+     false,
+     true,
+     true,
+     true
+    ],
+    "overdue": [
+     false,
+     false,
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "id": "ER-07",
+   "title": "the DEAD task of ER-05 receives ACK at 2026-12-03T10:00:00Z",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "esp_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "esp_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "sms_gateway_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "warehouse_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:05:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:01:05Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:06:05Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:06:10Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:36:10Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:36:15Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T02:36:15Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T02:36:20Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T14:36:20Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T14:36:25Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-02T14:36:25Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-02T14:36:30Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ACK",
+      "at": "2026-12-03T10:00:00Z"
+     }
+    ],
+    "status_at": "2026-12-03T10:00:00Z"
+   },
+   "expected": {
+    "state": "COMPLETED",
+    "completed_late": true,
+    "task": {
+     "system": "crm_mock",
+     "state": "ACKED"
+    }
+   }
+  },
+  {
+   "id": "ER-08",
+   "title": "a second ACK for an ACKED task",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:02:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ACK",
+      "at": "2026-11-01T00:03:00Z"
+     }
+    ],
+    "status_at": "2026-11-01T00:03:00Z"
+   },
+   "expected": {
+    "last_result": "unchanged",
+    "task": {
+     "system": "crm_mock",
+     "state": "ACKED"
+    }
+   }
+  },
+  {
+   "id": "ER-09",
+   "title": "ATTEMPT on a RETRY_WAIT task one second before next_attempt_at",
+   "input": {
+    "op": "run",
+    "events": [
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:01:00Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "NACK",
+      "at": "2026-11-01T00:01:05Z"
+     },
+     {
+      "system": "crm_mock",
+      "type": "ATTEMPT",
+      "at": "2026-11-01T00:06:04Z"
+     }
+    ],
+    "status_at": "2026-11-01T00:06:04Z"
+   },
+   "expected": {
+    "last_result": "INVALID_TRANSITION",
+    "task": {
+     "system": "crm_mock",
+     "state": "RETRY_WAIT",
+     "attempts": 1,
+     "next_attempt_at": "2026-11-01T00:06:05Z"
+    }
+   }
+  }
+ ]
+}

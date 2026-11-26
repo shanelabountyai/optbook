@@ -1,0 +1,63 @@
+{
+ "schema": "optbook.golden.identity/1",
+ "note": "Transcribed from PRD §5d by the Phase 1 run. Synthetic.",
+ "key": "test-only-key-not-a-secret",
+ "cases": [
+  {
+   "id": "ID-01",
+   "title": "email trimmed and lowercased",
+   "input": {
+    "channel": "email",
+    "raw": [
+     "  Ada.Lovelace@Example.COM "
+    ]
+   },
+   "expected": {
+    "normalized": "ada.lovelace@example.com",
+    "hash": "8690b981d53beeebcb93393d94c8a35453b3bf7018d47ffcfd06c86a12912b96"
+   }
+  },
+  {
+   "id": "ID-02",
+   "title": "phone punctuation removed",
+   "input": {
+    "channel": "sms",
+    "raw": [
+     "+1 (555) 010-0199"
+    ]
+   },
+   "expected": {
+    "normalized": "+15550100199",
+    "hash": "79af8db2075c8d79d46afeadc08aed2e439cf25aa70d069d47d353cc3e7528d7"
+   }
+  },
+  {
+   "id": "ID-03",
+   "title": "phone without a country prefix",
+   "input": {
+    "channel": "sms",
+    "raw": [
+     "555 010 0199"
+    ]
+   },
+   "expected": {
+    "error": "BAD_IDENTIFIER"
+   }
+  },
+  {
+   "id": "ID-04",
+   "title": "bad email addresses",
+   "input": {
+    "channel": "email",
+    "raw": [
+     "ada@@example.com",
+     "ada@example",
+     ""
+    ]
+   },
+   "expected": {
+    "error": "BAD_IDENTIFIER"
+   }
+  }
+ ]
+}

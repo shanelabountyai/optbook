@@ -1,0 +1,124 @@
+{
+ "schema": "optbook.golden.audit/1",
+ "note": "Transcribed from PRD §5f by the Phase 1 run. Synthetic. Expected values are only what the PRD table states.",
+ "cases": [
+  {
+   "id": "AU-01",
+   "title": "WE-27's ledger, as known at 2026-11-20T15:00:00Z",
+   "input": {
+    "op": "explain",
+    "case": "WE-27",
+    "mode": "as_known"
+   },
+   "expected": {
+    "outcome": "allow",
+    "not_yet_known": [
+     "WE-27-e5"
+    ]
+   }
+  },
+  {
+   "id": "AU-02",
+   "title": "the same, in hindsight",
+   "input": {
+    "op": "explain",
+    "case": "WE-27",
+    "mode": "hindsight"
+   },
+   "expected": {
+    "outcome": "deny",
+    "reason_codes": [
+     "PURPOSE_OPT_OUT"
+    ]
+   }
+  },
+  {
+   "id": "AU-03",
+   "title": "exposure over WE-27's ledger with one newsletter send at 2026-11-20T15:00:00Z",
+   "input": {
+    "op": "exposure",
+    "case": "WE-27",
+    "sends": [
+     {
+      "channel": "email",
+      "purpose": "newsletter",
+      "sent_at": "2026-11-20T15:00:00Z"
+     }
+    ]
+   },
+   "expected": {
+    "exposures": [
+     {
+      "send": {
+       "channel": "email",
+       "purpose": "newsletter",
+       "sent_at": "2026-11-20T15:00:00Z"
+      },
+      "hindsight_reasons": [
+       "PURPOSE_OPT_OUT"
+      ],
+      "late_events": [
+       {
+        "event_id": "WE-27-e5",
+        "occurred_at": "2026-11-10T09:00:00Z",
+        "recorded_at": "2026-11-21T08:00:00Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "AU-04",
+   "title": "verifyProof on a stored record equal to WE-05's expected decision",
+   "input": {
+    "op": "verify_proof",
+    "case": "WE-05",
+    "override": {}
+   },
+   "expected": {
+    "result": "MATCH"
+   }
+  },
+  {
+   "id": "AU-05",
+   "title": "the same record with outcome changed to allow",
+   "input": {
+    "op": "verify_proof",
+    "case": "WE-05",
+    "override": {
+     "outcome": "allow"
+    }
+   },
+   "expected": {
+    "result": "MISMATCH",
+    "fields": [
+     "outcome"
+    ]
+   }
+  },
+  {
+   "id": "AU-06",
+   "title": "canonical JSON known answer",
+   "input": {
+    "op": "canonical",
+    "value": {
+     "b": 1,
+     "a": [
+      true,
+      null,
+      "x"
+     ],
+     "c": {
+      "z": "é",
+      "y": -3
+     }
+    }
+   },
+   "expected": {
+    "canonical": "{\"a\":[true,null,\"x\"],\"b\":1,\"c\":{\"y\":-3,\"z\":\"é\"}}",
+    "sha256": "14a1892f6065261941f36fac5ca1109fd07e941f39ba553de2a189d9d0ea78bb"
+   }
+  }
+ ]
+}
