@@ -1,0 +1,16 @@
+{
+"K1":{"s":"N/A","text":"No sessions or accounts; single-user local tool with no auth system.","evidence":"server.js:1-282"},
+"K2":{"s":"N/A","text":"No users or privileged roles exist.","evidence":"package.json:21-23 (express only)"},
+"K3":{"s":"✗","text":"None of the 10 /api routes has an auth check; SEC-01 (fixed, loopback bind) and SEC-02 (fixed 3c84761, cross-site/Origin/Host 403 middleware) keep the LAN and other web pages out, but any local process can still reach GET /api/skills/run and /api/agents/run, and the optional token check was deliberately not done.","evidence":"server.js:23-36; server.js:43,51,64,93,175,184,200,210,238,270; server.js:280"},
+"K4":{"s":"N/A","text":"No tenants or owners; note /api/agents/run does not check projectPath against configured paths and /api/sessions/:slug/:sessionId joins unvalidated slug/sessionId into a path (.jsonl only), both only reachable from the local user.","evidence":"server.js:210-232; lib/sessions.js:177-178"},
+"K5":{"s":"N/A","text":"No public unauthenticated write surface; loopback-only.","evidence":"server.js:280"},
+"K6":{"s":"N/A","text":"No capability/token links exist.","evidence":"server.js (no token routes)"},
+"K7":{"s":"N/A","text":"Local loopback tool, no security headers set and none required by its trusted-machine model (cross-site refusal is done by header check in the /api middleware).","evidence":"server.js:23-36"},
+"K8":{"s":"✗","text":"Spawned claude process still inherits full process.env (every shell secret) with a caller-supplied prompt; no tracked secrets, no VITE/NEXT_PUBLIC vars, config.json and .env* are gitignored.","evidence":"lib/runner.js:34; .gitignore:2,5"},
+"K9":{"s":"N/A","text":"No webhooks.","evidence":"server.js routes list"},
+"K10":{"s":"✔","text":"Only log is the startup line and no tokens or bodies are logged; catch blocks return raw err.message to the loopback-only client, acceptable for this tool.","evidence":"server.js:281; lib/runner.js:40,54"},
+"K11":{"s":"N/A","text":"Only env var is PORT with inline default; no .env files, nothing to validate.","evidence":"server.js:12"},
+"K12":{"s":"N/A","text":"No database; a node --test suite now exists (cross-site test) but there is nothing to point at a DB.","evidence":"package.json:10; test/cross-site.test.js"},
+"K13":{"s":"N/A","text":"No privileged changes to audit; single user.","evidence":"server.js"},
+"K14":{"s":"✔","text":"Own fixed port 4173 in config default matching the port table and bound to 127.0.0.1; no Vercel deploy so ignoreCommand and cron routes do not apply (HEAD 3c84761, 2026-11-10).","evidence":"server.js:12,280"}
+}
