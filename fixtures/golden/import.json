@@ -1,0 +1,520 @@
+{
+ "schema": "optbook.golden.import/1",
+ "note": "Transcribed from PRD §5e by the Phase 1 run. Synthetic. The CSV is fixtures/import/im-sample.csv. Event ids of the ledger before the import are this run's choice. Expected values are only what the PRD table states; IM-14 covers rows 14 and 15.",
+ "key": "test-only-key-not-a-secret",
+ "csv": "fixtures/import/im-sample.csv",
+ "import_time": "2026-11-20T15:00:00Z",
+ "batch_id": "b_0001",
+ "mapping": {
+  "identifier": "email",
+  "channel": {
+   "constant": "email"
+  },
+  "purpose": {
+   "column": "topic"
+  },
+  "status": "status",
+  "date": "date",
+  "confirmation_date": "confirmed",
+  "date_format": "iso",
+  "source_label": "crm_import"
+ },
+ "contacts": [
+  {
+   "contact_id": "c_ada",
+   "channel": "email",
+   "identifier": "ada@example.com",
+   "events": [
+    {
+     "event_id": "IM-ada-e1",
+     "type": "OPT_IN",
+     "channel": "email",
+     "purpose": "newsletter",
+     "occurred_at": "2026-03-01T10:00:00Z",
+     "recorded_at": "2026-03-01T10:00:00Z",
+     "method": "form",
+     "source": "web_form",
+     "actor": {
+      "kind": "contact"
+     },
+     "evidence_ref": "ev/form/2026-03-01",
+     "verified_channel": null
+    },
+    {
+     "event_id": "IM-ada-e2",
+     "type": "OPT_IN_CONFIRM",
+     "channel": "email",
+     "purpose": null,
+     "occurred_at": "2026-03-01T10:05:00Z",
+     "recorded_at": "2026-03-01T10:05:00Z",
+     "method": "double_opt_in_confirm",
+     "source": "confirm_link",
+     "actor": {
+      "kind": "contact"
+     },
+     "evidence_ref": null,
+     "verified_channel": null
+    },
+    {
+     "event_id": "IM-ada-e3",
+     "type": "OPT_OUT",
+     "channel": "email",
+     "purpose": "newsletter",
+     "occurred_at": "2026-06-10T09:00:00Z",
+     "recorded_at": "2026-06-10T09:00:00Z",
+     "method": "preference_center",
+     "source": "preference_center",
+     "actor": {
+      "kind": "contact"
+     },
+     "evidence_ref": null,
+     "verified_channel": null
+    }
+   ]
+  }
+ ],
+ "tombstoned": [
+  {
+   "channel": "email",
+   "identifier": "gone@example.com"
+  }
+ ],
+ "summary": {
+  "APPEND": 6,
+  "APPEND_NO_EFFECT": 2,
+  "DUPLICATE": 1,
+  "HOLD_REVIEW": 1,
+  "SKIP_ERASED": 1,
+  "REJECT": 8
+ },
+ "cases": [
+  {
+   "id": "IM-01",
+   "title": "IM-01 (PRD §5e)",
+   "input": {
+    "rows": [
+     1
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 1,
+      "outcome": "APPEND_NO_EFFECT",
+      "notes": [
+       "DATE_ONLY"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_IN",
+        "channel": "email",
+        "purpose": "newsletter"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-02",
+   "title": "IM-02 (PRD §5e)",
+   "input": {
+    "rows": [
+     2
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 2,
+      "outcome": "HOLD_REVIEW",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-03",
+   "title": "IM-03 (PRD §5e)",
+   "input": {
+    "rows": [
+     3
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 3,
+      "outcome": "DUPLICATE",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-04",
+   "title": "IM-04 (PRD §5e)",
+   "input": {
+    "rows": [
+     4
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 4,
+      "outcome": "APPEND",
+      "notes": [
+       "DATE_DEFAULTED"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_OUT",
+        "channel": "email",
+        "purpose": "promotional",
+        "occurred_at": "2026-11-20T15:00:00Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-05",
+   "title": "IM-05 (PRD §5e)",
+   "input": {
+    "rows": [
+     5
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 5,
+      "outcome": "REJECT",
+      "reason": "MISSING_DATE_OPT_IN",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-06",
+   "title": "IM-06 (PRD §5e)",
+   "input": {
+    "rows": [
+     6
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 6,
+      "outcome": "APPEND",
+      "notes": [
+       "CONTACT_CREATED",
+       "DATE_ONLY",
+       "WILL_BE_PENDING_DOUBLE_OPT_IN"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_IN",
+        "channel": "email",
+        "purpose": "newsletter",
+        "occurred_at": "2026-10-05T00:00:00Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-07",
+   "title": "IM-07 (PRD §5e)",
+   "input": {
+    "rows": [
+     7
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 7,
+      "outcome": "REJECT",
+      "reason": "BAD_IDENTIFIER",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-08",
+   "title": "IM-08 (PRD §5e)",
+   "input": {
+    "rows": [
+     8
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 8,
+      "outcome": "REJECT",
+      "reason": "UNKNOWN_STATUS",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-09",
+   "title": "IM-09 (PRD §5e)",
+   "input": {
+    "rows": [
+     9
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 9,
+      "outcome": "REJECT",
+      "reason": "FUTURE_DATE",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-10",
+   "title": "IM-10 (PRD §5e)",
+   "input": {
+    "rows": [
+     10
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 10,
+      "outcome": "REJECT",
+      "reason": "ERASED_IDENTIFIER",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-11",
+   "title": "IM-11 (PRD §5e)",
+   "input": {
+    "rows": [
+     11
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 11,
+      "outcome": "SKIP_ERASED",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-12",
+   "title": "IM-12 (PRD §5e)",
+   "input": {
+    "rows": [
+     12
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 12,
+      "outcome": "REJECT",
+      "reason": "PURPOSE_NOT_CONSENTABLE",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-13",
+   "title": "IM-13 (PRD §5e)",
+   "input": {
+    "rows": [
+     13
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 13,
+      "outcome": "APPEND",
+      "notes": [
+       "DATE_ONLY"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_OUT",
+        "channel": "email",
+        "purpose": "newsletter",
+        "occurred_at": "2026-07-04T23:59:59Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-14",
+   "title": "IM-14 (PRD §5e)",
+   "input": {
+    "rows": [
+     14,
+     15
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 14,
+      "outcome": "APPEND_NO_EFFECT",
+      "notes": [
+       "CONTACT_CREATED",
+       "DATE_ONLY"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_IN",
+        "channel": "email",
+        "purpose": "newsletter",
+        "occurred_at": "2026-08-08T00:00:00Z"
+       }
+      ]
+     },
+     {
+      "row": 15,
+      "outcome": "APPEND",
+      "notes": [
+       "DATE_ONLY"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_OUT",
+        "channel": "email",
+        "purpose": "newsletter",
+        "occurred_at": "2026-08-08T23:59:59Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-15",
+   "title": "IM-15 (PRD §5e)",
+   "input": {
+    "rows": [
+     16
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 16,
+      "outcome": "REJECT",
+      "reason": "BAD_DATE",
+      "drafts": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-16",
+   "title": "IM-16 (PRD §5e)",
+   "input": {
+    "rows": [
+     17
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 17,
+      "outcome": "APPEND",
+      "notes": [
+       "CONTACT_CREATED",
+       "DATE_ONLY"
+      ],
+      "drafts": [
+       {
+        "type": "SUPPRESSION_ADD",
+        "channel": "email",
+        "kind": "hard_bounce",
+        "occurred_at": "2026-10-01T23:59:59Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-17",
+   "title": "IM-17 (PRD §5e)",
+   "input": {
+    "rows": [
+     18
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 18,
+      "outcome": "APPEND",
+      "notes": [
+       "CONTACT_CREATED",
+       "DATE_ONLY"
+      ],
+      "drafts": [
+       {
+        "type": "OPT_IN",
+        "channel": "email",
+        "purpose": "newsletter",
+        "occurred_at": "2026-10-05T00:00:00Z"
+       },
+       {
+        "type": "OPT_IN_CONFIRM",
+        "channel": "email",
+        "method": "import",
+        "occurred_at": "2026-10-06T00:00:00Z"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "IM-18",
+   "title": "IM-18 (PRD §5e)",
+   "input": {
+    "rows": [
+     19
+    ]
+   },
+   "expected": {
+    "rows": [
+     {
+      "row": 19,
+      "outcome": "REJECT",
+      "reason": "MISSING_IDENTIFIER",
+      "drafts": []
+     }
+    ]
+   }
+  }
+ ]
+}

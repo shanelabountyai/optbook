@@ -1,0 +1,453 @@
+{
+ "schema": "optbook.golden.preferences/1",
+ "note": "Transcribed from PRD §5c by the Phase 1 run. Synthetic. Starting states are the events of the named decision case. The submission time, token payloads and the full-form shape of submissions are this run's illustrative choices; expected values are only what the PRD table states.",
+ "key": "test-only-key-not-a-secret",
+ "cases": [
+  {
+   "id": "PC-01",
+   "title": "save with nothing changed",
+   "input": {
+    "start_case": "WE-01",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": true,
+       "product_updates": false,
+       "promotional": false
+      },
+      "sms": {
+       "newsletter": false,
+       "product_updates": false,
+       "promotional": false
+      }
+     },
+     "frequency": {
+      "email": "standard",
+      "sms": "standard"
+     },
+     "global_unsubscribe": false
+    }
+   },
+   "expected": {
+    "drafts": []
+   }
+  },
+  {
+   "id": "PC-02",
+   "title": "email newsletter off, product_updates on, link delivered by email",
+   "input": {
+    "start_case": "WE-01",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": false,
+       "product_updates": true,
+       "promotional": false
+      },
+      "sms": {
+       "newsletter": false,
+       "product_updates": false,
+       "promotional": false
+      }
+     },
+     "frequency": {
+      "email": "standard",
+      "sms": "standard"
+     },
+     "global_unsubscribe": false
+    }
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "OPT_OUT",
+      "channel": "email",
+      "purpose": "newsletter"
+     },
+     {
+      "type": "OPT_IN",
+      "channel": "email",
+      "purpose": "product_updates",
+      "verified_channel": "email"
+     }
+    ]
+   }
+  },
+  {
+   "id": "PC-03",
+   "title": "email frequency standard to weekly",
+   "input": {
+    "start_case": "WE-01",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": true,
+       "product_updates": false,
+       "promotional": false
+      },
+      "sms": {
+       "newsletter": false,
+       "product_updates": false,
+       "promotional": false
+      }
+     },
+     "frequency": {
+      "email": "weekly",
+      "sms": "standard"
+     },
+     "global_unsubscribe": false
+    }
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "FREQUENCY_SET",
+      "channel": "email",
+      "choice": "weekly"
+     }
+    ]
+   }
+  },
+  {
+   "id": "PC-04",
+   "title": "global unsubscribe ticked and product_updates turned on",
+   "input": {
+    "start_case": "WE-01",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": true,
+       "product_updates": true,
+       "promotional": false
+      },
+      "sms": {
+       "newsletter": false,
+       "product_updates": false,
+       "promotional": false
+      }
+     },
+     "frequency": {
+      "email": "standard",
+      "sms": "standard"
+     },
+     "global_unsubscribe": true
+    }
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "GLOBAL_UNSUBSCRIBE"
+     }
+    ]
+   }
+  },
+  {
+   "id": "PC-05",
+   "title": "globally unsubscribed contact turns email newsletter on",
+   "input": {
+    "start_case": "WE-08",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": true
+      }
+     },
+     "global_unsubscribe": false
+    }
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "OPT_IN",
+      "channel": "email",
+      "purpose": "newsletter"
+     }
+    ],
+    "after": [
+     {
+      "channel": "email",
+      "purpose": "newsletter",
+      "status": "on"
+     },
+     {
+      "channel": "sms",
+      "purpose": "promotional",
+      "status": "off"
+     }
+    ]
+   }
+  },
+  {
+   "id": "PC-06",
+   "title": "sms promotional on from a link delivered by email",
+   "input": {
+    "start_case": "WE-01",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": true,
+       "product_updates": false,
+       "promotional": false
+      },
+      "sms": {
+       "newsletter": false,
+       "product_updates": false,
+       "promotional": true
+      }
+     },
+     "frequency": {
+      "email": "standard",
+      "sms": "standard"
+     },
+     "global_unsubscribe": false
+    }
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "OPT_IN",
+      "channel": "sms",
+      "purpose": "promotional",
+      "verified_channel": "email"
+     }
+    ],
+    "after": [
+     {
+      "channel": "sms",
+      "purpose": "promotional",
+      "status": "pending"
+     }
+    ]
+   }
+  },
+  {
+   "id": "PC-07",
+   "title": "submission includes transactional",
+   "input": {
+    "start_case": "WE-01",
+    "identifier_channels": [
+     "email",
+     "sms"
+    ],
+    "token_payload": {
+     "v": 1,
+     "kid": "k1",
+     "org": "org_demo",
+     "cid": "c_0001",
+     "scope": "preferences",
+     "ch": "email",
+     "pur": null,
+     "mid": "m_0050",
+     "iat": 1795186800,
+     "exp": 1797778800
+    },
+    "at": "2026-11-21T10:00:00Z",
+    "submission": {
+     "purposes": {
+      "email": {
+       "newsletter": true,
+       "product_updates": false,
+       "promotional": false,
+       "transactional": true
+      },
+      "sms": {
+       "newsletter": false,
+       "product_updates": false,
+       "promotional": false
+      }
+     },
+     "frequency": {
+      "email": "standard",
+      "sms": "standard"
+     },
+     "global_unsubscribe": false
+    }
+   },
+   "expected": {
+    "error": "PURPOSE_NOT_CONSENTABLE",
+    "drafts": []
+   }
+  },
+  {
+   "id": "OC-01",
+   "title": "one-click POST, unsubscribe token on email, rule scope channel",
+   "input": {
+    "op": "one_click",
+    "start_case": "WE-01",
+    "token": "v1.eyJjaCI6ImVtYWlsIiwiY2lkIjoiY18wMDAxIiwiZXhwIjoxODI5NzQ2ODAwLCJpYXQiOjE3OTUxODY4MDAsImtpZCI6ImsxIiwibWlkIjoibV8wMDQyIiwib3JnIjoib3JnX2RlbW8iLCJwdXIiOiJuZXdzbGV0dGVyIiwic2NvcGUiOiJ1bnN1YnNjcmliZSIsInYiOjF9.Fg3OxE2vsphw91pscUUxpk3y_azqJEnhXxi50OQjQDc",
+    "keys": {
+     "k1": "test-only-key-not-a-secret"
+    },
+    "at": "2026-11-21T10:00:00Z"
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "OPT_OUT",
+      "channel": "email",
+      "purpose": null,
+      "method": "one_click"
+     }
+    ]
+   }
+  },
+  {
+   "id": "OC-02",
+   "title": "the same POST again after OC-01",
+   "input": {
+    "op": "one_click",
+    "start_case": "WE-01",
+    "after_case": "OC-01",
+    "token": "v1.eyJjaCI6ImVtYWlsIiwiY2lkIjoiY18wMDAxIiwiZXhwIjoxODI5NzQ2ODAwLCJpYXQiOjE3OTUxODY4MDAsImtpZCI6ImsxIiwibWlkIjoibV8wMDQyIiwib3JnIjoib3JnX2RlbW8iLCJwdXIiOiJuZXdzbGV0dGVyIiwic2NvcGUiOiJ1bnN1YnNjcmliZSIsInYiOjF9.Fg3OxE2vsphw91pscUUxpk3y_azqJEnhXxi50OQjQDc",
+    "keys": {
+     "k1": "test-only-key-not-a-secret"
+    },
+    "at": "2026-11-21T10:00:00Z"
+   },
+   "expected": {
+    "drafts": []
+   }
+  },
+  {
+   "id": "OC-03",
+   "title": "the same POST one second past exp",
+   "input": {
+    "op": "one_click",
+    "start_case": "WE-01",
+    "token": "v1.eyJjaCI6ImVtYWlsIiwiY2lkIjoiY18wMDAxIiwiZXhwIjoxODI5NzQ2ODAwLCJpYXQiOjE3OTUxODY4MDAsImtpZCI6ImsxIiwibWlkIjoibV8wMDQyIiwib3JnIjoib3JnX2RlbW8iLCJwdXIiOiJuZXdzbGV0dGVyIiwic2NvcGUiOiJ1bnN1YnNjcmliZSIsInYiOjF9.Fg3OxE2vsphw91pscUUxpk3y_azqJEnhXxi50OQjQDc",
+    "keys": {
+     "k1": "test-only-key-not-a-secret"
+    },
+    "at": "2027-12-25T15:00:01Z"
+   },
+   "expected": {
+    "drafts": [
+     {
+      "type": "OPT_OUT",
+      "channel": "email",
+      "purpose": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "OC-04",
+   "title": "one character of the signature changed (first, F to G)",
+   "input": {
+    "op": "one_click",
+    "start_case": "WE-01",
+    "token": "v1.eyJjaCI6ImVtYWlsIiwiY2lkIjoiY18wMDAxIiwiZXhwIjoxODI5NzQ2ODAwLCJpYXQiOjE3OTUxODY4MDAsImtpZCI6ImsxIiwibWlkIjoibV8wMDQyIiwib3JnIjoib3JnX2RlbW8iLCJwdXIiOiJuZXdzbGV0dGVyIiwic2NvcGUiOiJ1bnN1YnNjcmliZSIsInYiOjF9.Gg3OxE2vsphw91pscUUxpk3y_azqJEnhXxi50OQjQDc",
+    "keys": {
+     "k1": "test-only-key-not-a-secret"
+    },
+    "at": "2026-11-21T10:00:00Z"
+   },
+   "expected": {
+    "status": "BAD_SIGNATURE",
+    "drafts": []
+   }
+  }
+ ]
+}
