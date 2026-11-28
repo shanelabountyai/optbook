@@ -1,6 +1,14 @@
 # NEXT
 
-## ▶ 2026-11-27 (scheduled run, nobody watching): Phase 2 plan written; next run builds Phase 2 on these defaults unless Shane changes a D-row.
+## ▶ 2026-11-28: Shane confirmed the open decisions (O-8 to O-12 in `DECISIONS.md`)
+
+D-056 (the `// app` lines in `core.prisma`, now named in `CLAUDE.md` non-negotiable 12), D-058, D-061, D-066, D-067, D-069, D-074, D-075, D-047, D-048 and the five defaults stand as owner decisions. D-072 stands as written: `RLS_ENFORCE` is not set. PRD IM-17 now writes `OPT_IN_CONFIRM(email, newsletter)` (D-048). The Phase 2 plan (#3) is merged to `main`; the next run builds Phase 2 on branch `phase-2` from `main`.
+
+Still yours: add the optbook row to saas-foundation's `CLONES.md` (text in `PHASE-0-PLAN.md`); add port 8400 to your port table in `~/.claude/CLAUDE.md`; set `RLS_ENFORCE=1` if and when you want the RLS leg in CI.
+
+---
+
+## Earlier: 2026-11-27 (scheduled run, nobody watching): Phase 2 plan written; next run builds Phase 2 on these defaults unless Shane changes a D-row.
 
 State: `main` = `7ce7212` with the PRD kit (#1) and Phase 0 + Phase 1 (#2) merged and CI green (`ci (off)`, `modules-removed`). This run added documents only, on branch `phase-2-plan`, as a draft pull request against `main`. **No product code. Not deployed.**
 

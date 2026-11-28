@@ -28,7 +28,7 @@ Read first, in order: `docs/optbook/DECISIONS.md` (authoritative; outranks the P
 9. **Integers and strings only.** No floats in engine data. Timestamps are `YYYY-MM-DDTHH:MM:SSZ` strings; arithmetic is integer seconds. `Date` is not used under `src/lib/consent/`.
 10. **Golden values are frozen.** Never edit an expected value to pass a test. If the engine and a golden case disagree, stop and show the owner both derivations.
 11. **Rules are data.** Nothing regional, no cap, window, lifetime or delay is hard-coded in an engine; it comes from the validated config.
-12. **Template-owned paths are never edited** (`src/core/**`, `src/modules/**`, `prisma/schema/core.prisma`, core migrations, `tests/invariants/**`, `scripts/foundation-*.ts`, the security routes). `npm run foundation:drift` enforces it.
+12. **Template-owned paths are never edited** (`src/core/**`, `src/modules/**`, `prisma/schema/core.prisma`, core migrations, `tests/invariants/**`, `scripts/foundation-*.ts`, the security routes). `npm run foundation:drift` enforces it. One owner-confirmed exception (D-056, O-8): back-relation lines added to `model Org` in `core.prisma`, each ending `// app`.
 
 ## Working rules
 
