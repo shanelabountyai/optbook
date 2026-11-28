@@ -112,7 +112,7 @@ Field rules by type (anything else is refused at append with a named error):
 
 Ledger invariants:
 
-- **L-1 Append-only.** Events are never updated or deleted. A mistake is corrected by a later event.
+- **L-1 Append-only.** Events are never updated or deleted. A mistake is corrected by a later event. (Phase 2, D-061: deleting the org itself removes its rows; nothing else does.)
 - **L-2 No identifiers.** No event field holds an email address, a phone number or a name. Identifiers live only on the contact record.
 - **L-3 State is derived.** There is no stored "subscribed" flag that the decision reads. Any cached state must equal a fresh replay and may be discarded at any time.
 - **L-4 Order-independent.** Replaying the same set of events in any order gives the same state and the same decision.
@@ -347,7 +347,7 @@ A token is valid when `iat <= at < exp`. **An expired token never shows or chang
 
 ### 5e. Consent-history import
 
-**Behaviour.** An admin uploads a CSV exported from another system and declares a column mapping: which column is the identifier, the channel (or a constant), the purpose (or a constant), the status, the date, optionally a confirmation date, and **which date format the file uses**. optbook produces a preview: for every row, one outcome and a reason a person can read. Nothing is written until the admin commits, and the commit writes exactly what the preview showed: the preview carries a fingerprint of the ledger it was computed against, and a commit against a changed ledger is refused and re-previewed.
+**Behaviour.** An admin uploads a CSV exported from another system and declares a column mapping: which column is the identifier, the channel (or a constant), the purpose (or a constant), the status, the date, optionally a confirmation date, and **which date format the file uses**. optbook produces a preview: for every row, one outcome and a reason a person can read. Nothing is written until the admin commits, and the commit writes exactly what the preview showed: the preview carries a fingerprint of the ledger it was computed against, and a commit against a changed ledger is refused and re-previewed. (Phase 2, D-074: the written events' `recorded_at` is the commit time, when the ledger learns of them; everything else is as previewed.)
 
 **Outcomes** (closed set)
 
