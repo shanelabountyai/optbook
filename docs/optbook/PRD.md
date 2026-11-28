@@ -399,7 +399,7 @@ Reject reasons: `MISSING_IDENTIFIER`, `BAD_IDENTIFIER`, `UNKNOWN_CHANNEL`, `UNKN
 | IM-14 | two rows: `bo@example.com`, newsletter, `subscribed`, `2026-08-08` and `bo@example.com`, newsletter, `unsubscribed`, `2026-08-08` | first `APPEND_NO_EFFECT` + `CONTACT_CREATED`, `DATE_ONLY`; second `APPEND` + `DATE_ONLY` | opt-in at 00:00:00Z, opt-out at 23:59:59Z; the person ends opted out whichever row comes first in the file |
 | IM-15 | `ada@example.com`, newsletter, `subscribed`, `03/04/2025` | `REJECT / BAD_DATE` | the file was declared `iso` |
 | IM-16 | `cy@example.com`, newsletter, `bounced`, `2026-10-01` | `APPEND` + `CONTACT_CREATED`, `DATE_ONLY` | `SUPPRESSION_ADD(email, hard_bounce)` at 2026-10-01T23:59:59Z |
-| IM-17 | `di@example.com`, newsletter, `subscribed`, `2026-10-05`, confirmation date `2026-10-06` | `APPEND` + `CONTACT_CREATED`, `DATE_ONLY` | `OPT_IN` at 2026-10-05T00:00:00Z and `OPT_IN_CONFIRM(email)` (`method = import`) at 2026-10-06T00:00:00Z |
+| IM-17 | `di@example.com`, newsletter, `subscribed`, `2026-10-05`, confirmation date `2026-10-06` | `APPEND` + `CONTACT_CREATED`, `DATE_ONLY` | `OPT_IN` at 2026-10-05T00:00:00Z and `OPT_IN_CONFIRM(email, newsletter)` (`method = import`; the row's purpose, D-048, O-11) at 2026-10-06T00:00:00Z |
 | IM-18 | (blank), newsletter, `yes`, `2026-10-05` | `REJECT / MISSING_IDENTIFIER` | |
 
 The preview summary for these 19 rows: `APPEND` 6, `APPEND_NO_EFFECT` 2, `DUPLICATE` 1, `HOLD_REVIEW` 1, `SKIP_ERASED` 1, `REJECT` 8 (one each of the reasons shown in IM-05, IM-07, IM-08, IM-09, IM-10, IM-12, IM-15, IM-18).
